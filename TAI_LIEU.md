@@ -122,7 +122,7 @@ Rate limit chặn theo *tần suất ngắn hạn* (vd 30 req/phút) để bảo
 - `src/providers/` — adapter từng provider + logic fallback
 - `src/services/` — cache, cost, metrics, logger
 - `src/middleware/` — auth, rate limit
-- `src/routes/` — chat (lõi), embeddings, admin
+- `src/routes/` — chat (lõi), embeddings, models, admin
 - `src/routing/router.js` — smart routing (alias, tier, load balancing, latency)
 - `src/services/budget.js` — per-key budget/quota
 - `public/index.html` — dashboard

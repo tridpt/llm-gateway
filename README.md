@@ -24,18 +24,40 @@ Every team that ships LLM features rebuilds the same plumbing: caching, retries,
 
 ## Architecture
 
+```mermaid
+flowchart TD
+    C[Client] -->|POST /v1/chat/completions| A[Auth: Bearer key]
+    A --> B[Budget / quota check]
+    B --> R[Rate limit]
+    R --> K{Cache hit?}
+    K -->|yes| HIT[Return cached - cost 0]
+    K -->|no| RT[Smart router: alias, tier, load balance, latency]
+    RT --> EX[Execute across targets]
+    EX --> REL[Timeout + retry + circuit breaker]
+    REL --> P{Provider}
+    P --> G[Gemini]
+    P --> O[OpenAI]
+    P --> AN[Anthropic]
+    P --> M[Mock]
+    G & O & AN & M --> ACC[Cost + token accounting]
+    ACC --> OBS[Metrics / logs / Prometheus]
+    OBS --> C
+```
+
 ```
 client ──► /v1/chat/completions
              │
              ├─ auth (Bearer key)
+             ├─ budget / quota (per key, daily)
              ├─ rate limit (per key, sliding window)
              ├─ cache lookup ──────────────► hit ─► return (cost $0)
              │                                  │
-             └─ provider chain (fallback) ──────┘
-                  mock → openai → anthropic
+             ├─ smart router (alias/tier/LB/latency)
+             └─ execute across targets (timeout+retry+circuit) ──► fallback
+                  gemini → openai → anthropic → mock
              │
              ├─ cost + token accounting
-             ├─ metrics
+             ├─ metrics + Prometheus
              └─ structured logging
 ```
 
@@ -56,6 +78,7 @@ client ──► /v1/chat/completions
 | Budget / quota | `src/services/budget.js` |
 | Chat route (core) | `src/routes/chat.js` |
 | Embeddings route | `src/routes/embeddings.js` |
+| Models route | `src/routes/models.js` |
 | Admin route | `src/routes/admin.js` |
 | Dashboard | `public/index.html` |
 
@@ -146,6 +169,7 @@ Because the gateway speaks the OpenAI request shape, the Anthropic adapter trans
 |--------|------|-------------|
 | POST | `/v1/chat/completions` | OpenAI-compatible chat completion (auth + rate limited) |
 | POST | `/v1/embeddings` | OpenAI-compatible embeddings for RAG / semantic search |
+| GET | `/v1/models` | OpenAI-compatible model catalogue (includes aliases) |
 | GET | `/admin/metrics` | Aggregate metrics + recent requests |
 | GET | `/admin/routes` | Active routing config (aliases, tiers, models) |
 | GET | `/admin/usage` | Per-key budget usage |

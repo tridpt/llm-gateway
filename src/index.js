@@ -9,6 +9,7 @@ import { rateLimit } from './middleware/rateLimit.js';
 import { budgetGuard } from './middleware/budget.js';
 import { chatRouter } from './routes/chat.js';
 import { embeddingsRouter } from './routes/embeddings.js';
+import { modelsRouter } from './routes/models.js';
 import { adminRouter } from './routes/admin.js';
 import { resolveProviderChain } from './providers/index.js';
 
@@ -40,6 +41,8 @@ export function createApp() {
   // LLM API — authenticated, budget-checked, and rate limited.
   app.use('/v1', authenticate, budgetGuard, rateLimit, chatRouter);
   app.use('/v1', authenticate, budgetGuard, rateLimit, embeddingsRouter);
+  // Model catalogue — authenticated only (cheap, not metered).
+  app.use('/v1', authenticate, modelsRouter);
 
   // Admin/observability — authenticated (reuses gateway keys).
   app.use('/admin', authenticate, adminRouter);
@@ -50,6 +53,7 @@ export function createApp() {
       endpoints: {
         chat: 'POST /v1/chat/completions',
         embeddings: 'POST /v1/embeddings',
+        models: 'GET /v1/models',
         metrics: 'GET /admin/metrics',
         prometheus: 'GET /metrics',
         dashboard: 'GET /dashboard',
