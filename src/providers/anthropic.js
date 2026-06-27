@@ -1,5 +1,8 @@
 import { config } from '../config.js';
 import { estimateMessagesTokens, estimateTokens } from '../services/cost.js';
+import { keyPools } from '../services/keypool.js';
+
+const pool = keyPools.anthropic;
 
 /**
  * Anthropic (Claude) provider.
@@ -35,30 +38,42 @@ export const anthropicProvider = {
   name: 'anthropic',
 
   isConfigured() {
-    return Boolean(config.anthropic.apiKey);
+    return pool.size() > 0;
   },
 
-  _headers() {
+  _headers(key) {
     return {
       'Content-Type': 'application/json',
-      'x-api-key': config.anthropic.apiKey,
+      'x-api-key': key,
       'anthropic-version': ANTHROPIC_VERSION,
     };
   },
 
+  _pickKey() {
+    const picked = pool.next();
+    if (!picked) throw new Error('Anthropic error 429: all API keys are rate-limited');
+    return picked.key;
+  },
+
   async chatCompletion({ body, model, signal }) {
+    const key = this._pickKey();
     const payload = toAnthropicPayload({ ...body, model: model || body.model });
     const res = await fetch(`${config.anthropic.baseUrl}/messages`, {
       method: 'POST',
-      headers: this._headers(),
+      headers: this._headers(key),
       body: JSON.stringify({ ...payload, stream: false }),
       signal,
     });
 
+    if (res.status === 429) {
+      pool.markRateLimited(key);
+      throw new Error(`Anthropic error 429: ${(await res.text()).slice(0, 300)}`);
+    }
     if (!res.ok) {
       const text = await res.text();
       throw new Error(`Anthropic error ${res.status}: ${text.slice(0, 500)}`);
     }
+    pool.markSuccess(key);
 
     const data = await res.json();
     const content = (data.content || [])
@@ -78,18 +93,24 @@ export const anthropicProvider = {
   },
 
   async *streamCompletion({ body, model, signal }) {
+    const key = this._pickKey();
     const payload = toAnthropicPayload({ ...body, model: model || body.model });
     const res = await fetch(`${config.anthropic.baseUrl}/messages`, {
       method: 'POST',
-      headers: this._headers(),
+      headers: this._headers(key),
       body: JSON.stringify({ ...payload, stream: true }),
       signal,
     });
 
+    if (res.status === 429) {
+      pool.markRateLimited(key);
+      throw new Error(`Anthropic error 429: ${(await res.text()).slice(0, 300)}`);
+    }
     if (!res.ok) {
       const text = await res.text();
       throw new Error(`Anthropic error ${res.status}: ${text.slice(0, 500)}`);
     }
+    pool.markSuccess(key);
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();

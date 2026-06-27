@@ -6,6 +6,7 @@ A production-style gateway/proxy that sits between your application and LLM prov
 
 - **Multi-provider fallback** — try a primary provider, automatically fall back to others on failure
 - **Smart routing** — model aliases, tiered routing (free → cheap → premium), weighted round-robin load balancing, and latency-based routing
+- **Key rotation** — multiple API keys per provider, round-robined with automatic cooldown of rate-limited keys
 - **Reliability** — per-request timeouts, retry with exponential backoff, and a per-provider circuit breaker
 - **Response caching** — identical requests are served from cache (huge cost & latency win)
 - **Cost tracking** — per-request token counting and USD cost using a configurable pricing table
@@ -68,6 +69,7 @@ client ──► /v1/chat/completions
 | Provider adapters | `src/providers/{mock,openai,anthropic,gemini}.js` |
 | Fallback logic | `src/providers/index.js` |
 | Smart router | `src/routing/router.js` |
+| Key rotation pool | `src/services/keypool.js` |
 | Latency tracker | `src/services/latency.js` |
 | Cache (TTL + LRU) | `src/services/cache.js` |
 | Reliability (timeout/retry/circuit) | `src/services/reliability.js` |
@@ -247,6 +249,16 @@ the defaults (`DEFAULT_DAILY_REQUESTS`, `DEFAULT_DAILY_COST_USD`):
 A `null` limit means unlimited. Every response carries the current usage in
 `X-Budget-*` headers so clients can self-throttle. Live usage is at
 `/admin/usage` and on the dashboard.
+
+## Key rotation
+
+Each provider accepts **multiple comma-separated API keys**
+(`GEMINI_API_KEY=key1,key2,key3`). The gateway round-robins across them and,
+when a key returns 429, rests it for `KEY_COOLDOWN_SECONDS` before reusing it.
+Combined with request retry, a single rate-limited response transparently
+rotates to another key on the immediate retry — so pooled quota keeps a busy
+workload flowing. Pool health (ready/resting keys) is shown at `/admin/metrics`
+and on the dashboard.
 
 ## Reliability
 

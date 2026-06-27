@@ -55,6 +55,9 @@
   <h2>Circuit breakers</h2>
   <div id="circuits" style="margin-bottom:24px"></div>
 
+  <h2>API key pools</h2>
+  <div id="keypools" style="margin-bottom:24px"></div>
+
   <h2>Per-key budget usage</h2>
   <table id="budgets"><thead><tr><th>API key</th><th>Requests</th><th>Cost (USD)</th><th>Limits</th></tr></thead><tbody></tbody></table>
 
@@ -80,6 +83,7 @@
         renderByModel(m.byModel);
         renderRecent(m.recent);
         renderCircuits(m.circuits);
+        renderKeyPools(m.keyPools);
         renderBudgets(m.budgets);
       } catch (e) {
         $('cards').innerHTML = '<div class="card"><div class="label">Error</div><div class="value red">' + e.message + '</div></div>';
@@ -140,8 +144,18 @@
       }).join('');
     }
 
-    function renderBudgets(budgets) {
-      const rows = Object.entries(budgets || {}).map(([key, b]) => {
+    function renderKeyPools(pools) {
+      const entries = Object.entries(pools || {});
+      if (!entries.length) { $('keypools').innerHTML = '<span class="pill">no provider keys configured</span>'; return; }
+      $('keypools').innerHTML = entries.map(([name, p]) => {
+        const cls = p.available === 0 ? 'err' : 'hit';
+        return '<span class="pill ' + cls + '" style="margin-right:8px">' + name +
+          ' · ' + p.available + '/' + p.total + ' keys ready' +
+          (p.resting ? ' · ' + p.resting + ' resting' : '') + '</span>';
+      }).join('');
+    }
+
+    function renderBudgets(budgets) {      const rows = Object.entries(budgets || {}).map(([key, b]) => {
         const lim = b.limits || {};
         const limStr = [
           lim.dailyRequests != null ? lim.dailyRequests + ' req' : '∞ req',

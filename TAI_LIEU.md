@@ -112,6 +112,20 @@ Usage lưu theo "bucket" gắn với chuỗi ngày `YYYY-MM-DD` (UTC). Sang ngà
 **Khác gì rate limit?**
 Rate limit chặn theo *tần suất ngắn hạn* (vd 30 req/phút) để bảo vệ hệ thống. Budget chặn theo *tổng tiêu thụ trong ngày* (số request + chi phí) để kiểm soát chi phí. Hai cơ chế bổ sung cho nhau.
 
+## 4f. Multi-key rotation (giống "combo" của 9router)
+
+Mỗi provider nhận **nhiều API key** (phân tách bằng dấu phẩy: `GEMINI_API_KEY=key1,key2,key3`). Gateway xoay vòng (round-robin) qua các key, và khi một key trả 429 thì cho nó "nghỉ" (cooldown) một khoảng `KEY_COOLDOWN_SECONDS` rồi mới dùng lại.
+
+- Kết hợp với retry: một request gặp 429 → đánh dấu key đó nghỉ + ném lỗi retryable → retry tự lấy key khác → thành công ngay. Người dùng không thấy gián đoạn.
+- Nếu mọi key đều đang nghỉ → provider coi như tạm hết quota → fallback sang provider khác.
+- Xem tình trạng pool (số key sẵn sàng / đang nghỉ) ở `/admin/metrics` và dashboard.
+
+**Vì sao đây là tính năng "ăn tiền"?**
+Đây chính là cách các router như 9router "không bao giờ dính rate limit": gộp quota của nhiều tài khoản/key lại, tự né key đang bị giới hạn. Tăng throughput mà không phải nâng cấp gói trả phí.
+
+**Round-robin key khác round-robin provider (load balancing) thế nào?**
+Load balancing (mục 4d) chia tải giữa các *provider/model khác nhau* cùng phục vụ một logical model. Key rotation chia tải giữa nhiều *key của cùng một provider*. Hai tầng này hoạt động độc lập và bổ sung nhau.
+
 **Đếm token bằng cách nào?**
 Ưu tiên `usage` thật mà provider trả về. Nếu không có thì ước lượng ~4 ký tự/token. Production nên dùng tokenizer thật (`tiktoken`).
 
@@ -125,6 +139,7 @@ Rate limit chặn theo *tần suất ngắn hạn* (vd 30 req/phút) để bảo
 - `src/routes/` — chat (lõi), embeddings, models, admin
 - `src/routing/router.js` — smart routing (alias, tier, load balancing, latency)
 - `src/services/budget.js` — per-key budget/quota
+- `src/services/keypool.js` — xoay vòng nhiều API key / provider
 - `public/index.html` — dashboard
 - `examples/semantic-search.mjs` — demo RAG retrieval
 - `routes.json` — cấu hình định tuyến (alias / tier / target)
@@ -154,3 +169,5 @@ Rate limit chặn theo *tần suất ngắn hạn* (vd 30 req/phút) để bảo
 12. Weighted round-robin và latency-based routing khác nhau khi nào nên dùng cái nào?
 13. Budget/quota khác rate limit ở điểm nào?
 14. Vì sao usage budget reset được theo ngày mà không cần cron job?
+15. Multi-key rotation giúp gì? Khi một key dính 429 thì điều gì xảy ra?
+16. Key rotation khác load balancing giữa các provider thế nào?

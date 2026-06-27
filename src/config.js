@@ -66,22 +66,25 @@ export const config = {
     : ['mock'],
 
   openai: {
-    apiKey: process.env.OPENAI_API_KEY || '',
+    apiKeys: list(process.env.OPENAI_API_KEY),
     baseUrl: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
   },
 
   anthropic: {
-    apiKey: process.env.ANTHROPIC_API_KEY || '',
+    apiKeys: list(process.env.ANTHROPIC_API_KEY),
     baseUrl: process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com/v1',
   },
 
   gemini: {
-    apiKey: process.env.GEMINI_API_KEY || '',
+    apiKeys: list(process.env.GEMINI_API_KEY),
     // Gemini exposes an OpenAI-compatible endpoint.
     baseUrl:
       process.env.GEMINI_BASE_URL ||
       'https://generativelanguage.googleapis.com/v1beta/openai',
   },
+
+  // How long a rate-limited (429) API key is rested before being retried.
+  keyCooldownMs: int(process.env.KEY_COOLDOWN_SECONDS, 60) * 1000,
 
   cache: {
     enabled: bool(process.env.CACHE_ENABLED, true),

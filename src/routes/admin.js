@@ -8,6 +8,7 @@ import { circuitBreaker } from '../services/reliability.js';
 import { latencyTracker } from '../services/latency.js';
 import { router } from '../routing/router.js';
 import { budgetManager } from '../services/budget.js';
+import { keyPoolsSnapshot } from '../services/keypool.js';
 
 export const adminRouter = express.Router();
 
@@ -23,6 +24,7 @@ adminRouter.get('/metrics', (req, res) => {
     routing: router.describe(),
     latency: latencyTracker.snapshot(),
     budgets: budgetManager.snapshot(),
+    keyPools: keyPoolsSnapshot(),
   });
 });
 

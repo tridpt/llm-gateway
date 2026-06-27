@@ -1,5 +1,8 @@
 import { config } from '../config.js';
 import { estimateMessagesTokens, estimateTokens } from '../services/cost.js';
+import { keyPools } from '../services/keypool.js';
+
+const pool = keyPools.gemini;
 
 /**
  * Gemini (Google) provider.
@@ -18,28 +21,40 @@ export const geminiProvider = {
   name: 'gemini',
 
   isConfigured() {
-    return Boolean(config.gemini.apiKey);
+    return pool.size() > 0;
   },
 
-  _headers() {
+  _headers(key) {
     return {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.gemini.apiKey}`,
+      Authorization: `Bearer ${key}`,
     };
   },
 
+  _pickKey() {
+    const picked = pool.next();
+    if (!picked) throw new Error('Gemini error 429: all API keys are rate-limited');
+    return picked.key;
+  },
+
   async chatCompletion({ body, model, signal }) {
+    const key = this._pickKey();
     const res = await fetch(`${config.gemini.baseUrl}/chat/completions`, {
       method: 'POST',
-      headers: this._headers(),
+      headers: this._headers(key),
       body: JSON.stringify({ ...body, model: model || body.model, stream: false }),
       signal,
     });
 
+    if (res.status === 429) {
+      pool.markRateLimited(key);
+      throw new Error(`Gemini error 429: ${(await res.text()).slice(0, 300)}`);
+    }
     if (!res.ok) {
       const text = await res.text();
       throw new Error(`Gemini error ${res.status}: ${text.slice(0, 500)}`);
     }
+    pool.markSuccess(key);
 
     const data = await res.json();
     const choice = data.choices?.[0];
@@ -56,17 +71,23 @@ export const geminiProvider = {
   },
 
   async *streamCompletion({ body, model, signal }) {
+    const key = this._pickKey();
     const res = await fetch(`${config.gemini.baseUrl}/chat/completions`, {
       method: 'POST',
-      headers: this._headers(),
+      headers: this._headers(key),
       body: JSON.stringify({ ...body, model: model || body.model, stream: true }),
       signal,
     });
 
+    if (res.status === 429) {
+      pool.markRateLimited(key);
+      throw new Error(`Gemini error 429: ${(await res.text()).slice(0, 300)}`);
+    }
     if (!res.ok) {
       const text = await res.text();
       throw new Error(`Gemini error ${res.status}: ${text.slice(0, 500)}`);
     }
+    pool.markSuccess(key);
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -119,17 +140,23 @@ export const geminiProvider = {
   },
 
   async embeddings({ input, model, signal }) {
+    const key = this._pickKey();
     const res = await fetch(`${config.gemini.baseUrl}/embeddings`, {
       method: 'POST',
-      headers: this._headers(),
+      headers: this._headers(key),
       body: JSON.stringify({ model, input }),
       signal,
     });
 
+    if (res.status === 429) {
+      pool.markRateLimited(key);
+      throw new Error(`Gemini error 429: ${(await res.text()).slice(0, 300)}`);
+    }
     if (!res.ok) {
       const text = await res.text();
       throw new Error(`Gemini error ${res.status}: ${text.slice(0, 500)}`);
     }
+    pool.markSuccess(key);
 
     const data = await res.json();
     const vectors = (data.data || [])

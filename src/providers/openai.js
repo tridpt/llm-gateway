@@ -1,5 +1,8 @@
 import { config } from '../config.js';
 import { estimateMessagesTokens, estimateTokens } from '../services/cost.js';
+import { keyPools } from '../services/keypool.js';
+
+const pool = keyPools.openai;
 
 /**
  * OpenAI provider. Talks to the standard /chat/completions endpoint.
@@ -10,24 +13,40 @@ export const openaiProvider = {
   name: 'openai',
 
   isConfigured() {
-    return Boolean(config.openai.apiKey);
+    return pool.size() > 0;
+  },
+
+  _headers(key) {
+    return {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${key}`,
+    };
+  },
+
+  _pickKey() {
+    const picked = pool.next();
+    if (!picked) throw new Error('OpenAI error 429: all API keys are rate-limited');
+    return picked.key;
   },
 
   async chatCompletion({ body, model, signal }) {
+    const key = this._pickKey();
     const res = await fetch(`${config.openai.baseUrl}/chat/completions`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${config.openai.apiKey}`,
-      },
+      headers: this._headers(key),
       body: JSON.stringify({ ...body, model: model || body.model, stream: false }),
       signal,
     });
 
+    if (res.status === 429) {
+      pool.markRateLimited(key);
+      throw new Error(`OpenAI error 429: ${(await res.text()).slice(0, 300)}`);
+    }
     if (!res.ok) {
       const text = await res.text();
       throw new Error(`OpenAI error ${res.status}: ${text.slice(0, 500)}`);
     }
+    pool.markSuccess(key);
 
     const data = await res.json();
     const choice = data.choices?.[0];
@@ -44,12 +63,10 @@ export const openaiProvider = {
   },
 
   async *streamCompletion({ body, model, signal }) {
+    const key = this._pickKey();
     const res = await fetch(`${config.openai.baseUrl}/chat/completions`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${config.openai.apiKey}`,
-      },
+      headers: this._headers(key),
       // Ask OpenAI to include usage in the final streamed chunk.
       body: JSON.stringify({
         ...body,
@@ -60,10 +77,15 @@ export const openaiProvider = {
       signal,
     });
 
+    if (res.status === 429) {
+      pool.markRateLimited(key);
+      throw new Error(`OpenAI error 429: ${(await res.text()).slice(0, 300)}`);
+    }
     if (!res.ok) {
       const text = await res.text();
       throw new Error(`OpenAI error ${res.status}: ${text.slice(0, 500)}`);
     }
+    pool.markSuccess(key);
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -116,20 +138,23 @@ export const openaiProvider = {
   },
 
   async embeddings({ input, model, signal }) {
+    const key = this._pickKey();
     const res = await fetch(`${config.openai.baseUrl}/embeddings`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${config.openai.apiKey}`,
-      },
+      headers: this._headers(key),
       body: JSON.stringify({ model, input }),
       signal,
     });
 
+    if (res.status === 429) {
+      pool.markRateLimited(key);
+      throw new Error(`OpenAI error 429: ${(await res.text()).slice(0, 300)}`);
+    }
     if (!res.ok) {
       const text = await res.text();
       throw new Error(`OpenAI error ${res.status}: ${text.slice(0, 500)}`);
     }
+    pool.markSuccess(key);
 
     const data = await res.json();
     const vectors = (data.data || [])
