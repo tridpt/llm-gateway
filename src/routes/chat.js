@@ -9,6 +9,7 @@ import { resolveProviderChain, executeAcrossTargets, REGISTRY } from '../provide
 import { circuitBreaker, withTimeout } from '../services/reliability.js';
 import { latencyTracker } from '../services/latency.js';
 import { router } from '../routing/router.js';
+import { budgetManager } from '../services/budget.js';
 
 export const chatRouter = express.Router();
 
@@ -97,9 +98,9 @@ chatRouter.post('/chat/completions', async (req, res) => {
 
   try {
     if (wantsStream) {
-      await handleStreaming(req, res, { requestId, body, cacheKey, startedAt });
+      await handleStreaming(req, res, { requestId, body, cacheKey, startedAt, budgetKey: req.budgetKey });
     } else {
-      await handleNonStreaming(res, { requestId, body, cacheKey, startedAt });
+      await handleNonStreaming(res, { requestId, body, cacheKey, startedAt, budgetKey: req.budgetKey });
     }
   } catch (err) {
     const latencyMs = Date.now() - startedAt;
@@ -124,7 +125,7 @@ chatRouter.post('/chat/completions', async (req, res) => {
   }
 });
 
-async function handleNonStreaming(res, { requestId, body, cacheKey, startedAt }) {
+async function handleNonStreaming(res, { requestId, body, cacheKey, startedAt, budgetKey }) {
   const availableProviders = resolveProviderChain().map((p) => p.name);
   const targets = router.resolveTargets(body.model, availableProviders);
 
@@ -136,6 +137,8 @@ async function handleNonStreaming(res, { requestId, body, cacheKey, startedAt })
 
   const costUsd = computeCost(result.model, result.usage.inputTokens, result.usage.outputTokens);
   const latencyMs = Date.now() - startedAt;
+
+  if (budgetKey) budgetManager.addCost(budgetKey, costUsd);
 
   if (config.cache.enabled) {
     cache.set(cacheKey, { ...result, provider });
@@ -179,7 +182,7 @@ async function handleNonStreaming(res, { requestId, body, cacheKey, startedAt })
   );
 }
 
-async function handleStreaming(req, res, { requestId, body, cacheKey, startedAt }) {
+async function handleStreaming(req, res, { requestId, body, cacheKey, startedAt, budgetKey }) {
   const availableProviders = resolveProviderChain().map((p) => p.name);
   const targets = router.resolveTargets(body.model, availableProviders);
 
@@ -280,6 +283,8 @@ async function handleStreaming(req, res, { requestId, body, cacheKey, startedAt 
   // Post-stream accounting + cache.
   const costUsd = computeCost(model, usage.inputTokens, usage.outputTokens);
   const latencyMs = Date.now() - startedAt;
+
+  if (budgetKey) budgetManager.addCost(budgetKey, costUsd);
 
   if (config.cache.enabled && fullText) {
     cache.set(cacheKey, {

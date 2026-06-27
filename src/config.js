@@ -96,7 +96,6 @@ export const config = {
   },
 
   reliability: {
-    // Abort a provider call that takes longer than this.
     timeoutMs: int(process.env.REQUEST_TIMEOUT_MS, 30000),
     // How many times to retry the SAME provider on a transient error
     // before falling back to the next provider.
@@ -106,6 +105,20 @@ export const config = {
     // skipped ("open") until the cooldown elapses.
     circuitThreshold: int(process.env.CIRCUIT_FAILURE_THRESHOLD, 5),
     circuitCooldownMs: int(process.env.CIRCUIT_COOLDOWN_SECONDS, 30) * 1000,
+  },
+
+  budget: {
+    enabled: bool(process.env.BUDGET_ENABLED, true),
+    // Per-key daily limits. null = unlimited. Per-key overrides live in
+    // budgets.json; these are the defaults for keys without an override.
+    defaultDailyRequests:
+      process.env.DEFAULT_DAILY_REQUESTS !== undefined
+        ? int(process.env.DEFAULT_DAILY_REQUESTS, 0)
+        : null,
+    defaultDailyCostUsd:
+      process.env.DEFAULT_DAILY_COST_USD !== undefined
+        ? parseFloat(process.env.DEFAULT_DAILY_COST_USD)
+        : null,
   },
 
   logging: {

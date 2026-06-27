@@ -1,0 +1,7 @@
+{
+  "default": { "dailyRequests": 1000, "dailyCostUsd": 1.0 },
+  "keys": {
+    "demo-key-123": { "dailyRequests": 1000, "dailyCostUsd": 1.0 },
+    "limited-key": { "dailyRequests": 3, "dailyCostUsd": 0.001 }
+  }
+}

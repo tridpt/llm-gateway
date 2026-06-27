@@ -7,6 +7,7 @@ import { PRICING } from '../services/cost.js';
 import { circuitBreaker } from '../services/reliability.js';
 import { latencyTracker } from '../services/latency.js';
 import { router } from '../routing/router.js';
+import { budgetManager } from '../services/budget.js';
 
 export const adminRouter = express.Router();
 
@@ -21,7 +22,12 @@ adminRouter.get('/metrics', (req, res) => {
     circuits: circuitBreaker.snapshot(),
     routing: router.describe(),
     latency: latencyTracker.snapshot(),
+    budgets: budgetManager.snapshot(),
   });
+});
+
+adminRouter.get('/usage', (req, res) => {
+  res.json({ enabled: config.budget.enabled, keys: budgetManager.snapshot() });
 });
 
 adminRouter.post('/metrics/reset', (req, res) => {

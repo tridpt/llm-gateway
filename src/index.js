@@ -6,6 +6,7 @@ import { logger } from './services/logger.js';
 import { metrics } from './services/metrics.js';
 import { authenticate } from './middleware/auth.js';
 import { rateLimit } from './middleware/rateLimit.js';
+import { budgetGuard } from './middleware/budget.js';
 import { chatRouter } from './routes/chat.js';
 import { embeddingsRouter } from './routes/embeddings.js';
 import { adminRouter } from './routes/admin.js';
@@ -36,9 +37,9 @@ export function createApp() {
   // Static observability dashboard.
   app.use('/dashboard', express.static(path.join(__dirname, '..', 'public')));
 
-  // LLM API — authenticated + rate limited.
-  app.use('/v1', authenticate, rateLimit, chatRouter);
-  app.use('/v1', authenticate, rateLimit, embeddingsRouter);
+  // LLM API — authenticated, budget-checked, and rate limited.
+  app.use('/v1', authenticate, budgetGuard, rateLimit, chatRouter);
+  app.use('/v1', authenticate, budgetGuard, rateLimit, embeddingsRouter);
 
   // Admin/observability — authenticated (reuses gateway keys).
   app.use('/admin', authenticate, adminRouter);

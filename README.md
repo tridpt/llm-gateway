@@ -8,6 +8,7 @@ A production-style gateway/proxy that sits between your application and LLM prov
 - **Response caching** — identical requests are served from cache (huge cost & latency win)
 - **Cost tracking** — per-request token counting and USD cost using a configurable pricing table
 - **Rate limiting** — sliding-window limits per client API key
+- **Budgets & quotas** — per-key daily request count and USD cost limits, enforced with HTTP 429
 - **Streaming** — Server-Sent Events (SSE) pass-through, plus streamed replay of cached answers
 - **Embeddings** — OpenAI-compatible `/v1/embeddings` for RAG / semantic search
 - **Observability** — structured JSONL logs, a live metrics dashboard, and a Prometheus `/metrics` endpoint
@@ -50,6 +51,7 @@ client ──► /v1/chat/completions
 | Metrics | `src/services/metrics.js` |
 | Logging | `src/services/logger.js` |
 | Auth / rate limit | `src/middleware/*` |
+| Budget / quota | `src/services/budget.js` |
 | Chat route (core) | `src/routes/chat.js` |
 | Embeddings route | `src/routes/embeddings.js` |
 | Admin route | `src/routes/admin.js` |
@@ -144,6 +146,7 @@ Because the gateway speaks the OpenAI request shape, the Anthropic adapter trans
 | POST | `/v1/embeddings` | OpenAI-compatible embeddings for RAG / semantic search |
 | GET | `/admin/metrics` | Aggregate metrics + recent requests |
 | GET | `/admin/routes` | Active routing config (aliases, tiers, models) |
+| GET | `/admin/usage` | Per-key budget usage |
 | GET | `/metrics` | Prometheus exposition format (for scraping/Grafana) |
 | POST | `/admin/metrics/reset` | Reset counters |
 | POST | `/admin/cache/clear` | Empty the cache |
@@ -195,6 +198,29 @@ requested model name into an ordered list of concrete targets (`provider` +
 If a model isn't in `routes.json`, the gateway uses the default behaviour: try
 each configured provider in `PROVIDER_ORDER` with the requested model name.
 Routing state is visible at `/admin/routes` and `/admin/metrics`.
+
+## Budgets & quotas
+
+Each API key has a daily **request count** limit and a daily **cost (USD)**
+limit. When either is reached, requests are rejected with HTTP 429
+(`budget_exceeded`) and a `Retry-After` pointing at the next UTC midnight, when
+usage resets.
+
+Per-key limits live in an optional `budgets.json`; keys without an override use
+the defaults (`DEFAULT_DAILY_REQUESTS`, `DEFAULT_DAILY_COST_USD`):
+
+```json
+{
+  "default": { "dailyRequests": 1000, "dailyCostUsd": 1.0 },
+  "keys": {
+    "limited-key": { "dailyRequests": 3, "dailyCostUsd": 0.001 }
+  }
+}
+```
+
+A `null` limit means unlimited. Every response carries the current usage in
+`X-Budget-*` headers so clients can self-throttle. Live usage is at
+`/admin/usage` and on the dashboard.
 
 ## Reliability
 

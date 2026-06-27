@@ -95,6 +95,23 @@ Exponential Weighted Moving Average — trung bình động có trọng số: `m
 **Vì sao tách "tên model client gửi" khỏi "model thật"?**
 Để có một lớp gián tiếp (indirection): client chỉ biết `fast`/`smart`, còn gateway tự do đổi provider/model thật, làm A/B test, hoặc failover mà client không hề hay biết. Đây chính là giá trị cốt lõi của một router như OpenRouter/9router.
 
+## 4e. Per-key budget / quota
+
+Mỗi API key có 2 hạn mức/ngày: **số request** và **chi phí USD**. Vượt một trong hai → trả **HTTP 429** (`budget_exceeded`), kèm `Retry-After` trỏ tới nửa đêm UTC kế tiếp (lúc usage reset).
+
+- Hạn mức riêng từng key khai báo trong `budgets.json`; key không có override thì dùng mặc định (`DEFAULT_DAILY_REQUESTS`, `DEFAULT_DAILY_COST_USD`).
+- `null` = không giới hạn.
+- Mọi response trả header `X-Budget-*` để client tự điều tiết.
+- Xem usage tại `/admin/usage` và trên dashboard.
+
+**Cách đếm:** request quota tính ngay ở middleware (kể cả request cache hit hay lỗi). Chi phí thì cộng sau khi gọi provider xong (cache hit = $0). Cho phép request làm vượt budget hoàn tất, nhưng request sau đó bị chặn (soft cap) — đơn giản và đủ dùng.
+
+**Vì sao reset theo ngày UTC mà không cần cron job?**
+Usage lưu theo "bucket" gắn với chuỗi ngày `YYYY-MM-DD` (UTC). Sang ngày mới, key bucket đổi → tự động đếm lại từ 0, không cần job dọn dẹp.
+
+**Khác gì rate limit?**
+Rate limit chặn theo *tần suất ngắn hạn* (vd 30 req/phút) để bảo vệ hệ thống. Budget chặn theo *tổng tiêu thụ trong ngày* (số request + chi phí) để kiểm soát chi phí. Hai cơ chế bổ sung cho nhau.
+
 **Đếm token bằng cách nào?**
 Ưu tiên `usage` thật mà provider trả về. Nếu không có thì ước lượng ~4 ký tự/token. Production nên dùng tokenizer thật (`tiktoken`).
 
@@ -107,9 +124,11 @@ Exponential Weighted Moving Average — trung bình động có trọng số: `m
 - `src/middleware/` — auth, rate limit
 - `src/routes/` — chat (lõi), embeddings, admin
 - `src/routing/router.js` — smart routing (alias, tier, load balancing, latency)
+- `src/services/budget.js` — per-key budget/quota
 - `public/index.html` — dashboard
 - `examples/semantic-search.mjs` — demo RAG retrieval
 - `routes.json` — cấu hình định tuyến (alias / tier / target)
+- `budgets.json` — hạn mức theo API key
 
 ## 6. Hướng phát triển tiếp (để nói "next steps")
 
@@ -133,3 +152,5 @@ Exponential Weighted Moving Average — trung bình động có trọng số: `m
 10. Vì sao embedding của cùng một text luôn giống nhau, và điều đó giúp cache thế nào?
 11. Model alias giúp ích gì? Vì sao nên tách tên client gửi khỏi model thật?
 12. Weighted round-robin và latency-based routing khác nhau khi nào nên dùng cái nào?
+13. Budget/quota khác rate limit ở điểm nào?
+14. Vì sao usage budget reset được theo ngày mà không cần cron job?

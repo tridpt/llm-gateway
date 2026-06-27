@@ -55,6 +55,9 @@
   <h2>Circuit breakers</h2>
   <div id="circuits" style="margin-bottom:24px"></div>
 
+  <h2>Per-key budget usage</h2>
+  <table id="budgets"><thead><tr><th>API key</th><th>Requests</th><th>Cost (USD)</th><th>Limits</th></tr></thead><tbody></tbody></table>
+
   <h2>Recent requests</h2>
   <table id="recent"><thead><tr><th>Time</th><th>Model</th><th>Provider</th><th>Status</th><th>Tokens</th><th>Cost</th><th>Latency</th></tr></thead><tbody></tbody></table>
 
@@ -77,6 +80,7 @@
         renderByModel(m.byModel);
         renderRecent(m.recent);
         renderCircuits(m.circuits);
+        renderBudgets(m.budgets);
       } catch (e) {
         $('cards').innerHTML = '<div class="card"><div class="label">Error</div><div class="value red">' + e.message + '</div></div>';
       }
@@ -136,8 +140,22 @@
       }).join('');
     }
 
-    async function resetMetrics() {
-      await fetch('/admin/metrics/reset', { method: 'POST', headers: headers() });
+    function renderBudgets(budgets) {
+      const rows = Object.entries(budgets || {}).map(([key, b]) => {
+        const lim = b.limits || {};
+        const limStr = [
+          lim.dailyRequests != null ? lim.dailyRequests + ' req' : '∞ req',
+          lim.dailyCostUsd != null ? '$' + lim.dailyCostUsd : '$∞',
+        ].join(' · ');
+        const overReq = lim.dailyRequests != null && b.requests >= lim.dailyRequests;
+        const cls = overReq ? ' class="pill err"' : '';
+        return '<tr><td><code>' + key + '</code></td><td><span' + cls + '>' + b.requests +
+          '</span></td><td>$' + (b.costUsd||0).toFixed(6) + '</td><td>' + limStr + '</td></tr>';
+      }).join('');
+      $('budgets').querySelector('tbody').innerHTML = rows || '<tr><td colspan="4">No usage yet</td></tr>';
+    }
+
+    async function resetMetrics() {      await fetch('/admin/metrics/reset', { method: 'POST', headers: headers() });
       refresh();
     }
     async function clearCache() {

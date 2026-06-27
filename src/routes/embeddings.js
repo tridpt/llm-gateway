@@ -7,6 +7,7 @@ import { logger } from '../services/logger.js';
 import { computeCost } from '../services/cost.js';
 import { resolveProviderChain, executeAcrossTargets } from '../providers/index.js';
 import { router } from '../routing/router.js';
+import { budgetManager } from '../services/budget.js';
 
 export const embeddingsRouter = express.Router();
 
@@ -101,6 +102,8 @@ embeddingsRouter.post('/embeddings', async (req, res) => {
 
     const costUsd = computeCost(result.model, result.usage.inputTokens, 0);
     const latencyMs = Date.now() - startedAt;
+
+    if (req.budgetKey) budgetManager.addCost(req.budgetKey, costUsd);
 
     if (config.cache.enabled) {
       cache.set(cacheKey, { ...result, provider });
