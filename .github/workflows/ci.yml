@@ -29,3 +29,22 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t llm-gateway:ci .
+
+      - name: Smoke test the image
+        run: |
+          docker run -d --name gw -p 8080:8080 -e PROVIDER_ORDER=mock llm-gateway:ci
+          for i in $(seq 1 15); do
+            if wget -q -O- http://localhost:8080/health; then echo "healthy"; exit 0; fi
+            sleep 1
+          done
+          echo "health check failed"; docker logs gw; exit 1
+

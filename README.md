@@ -209,6 +209,26 @@ Because the gateway speaks the OpenAI request shape, the Anthropic adapter trans
 | GET | `/health` | Liveness probe |
 | GET | `/dashboard` | Live observability UI |
 
+## Run with Docker
+
+You don't need Docker to run the gateway (`npm start` is enough), but a
+`Dockerfile` and `docker-compose.yml` are included for containerized
+deployment. The image is built and smoke-tested automatically in CI.
+
+```bash
+docker compose up --build
+```
+
+Compose reads your local `.env` for API keys at runtime (they're never baked
+into the image), and every variable has a safe default so it boots even with no
+`.env` (mock provider). The image runs as a non-root user with a `/health`
+healthcheck. Or build/run directly:
+
+```bash
+docker build -t llm-gateway .
+docker run -p 8080:8080 -e PROVIDER_ORDER=gemini,mock -e GEMINI_API_KEY=AI... llm-gateway
+```
+
 ## Configuration
 
 All via `.env` (see `.env.example` for the full list): provider order, API keys, cache TTL/size, rate-limit window/max, logging.

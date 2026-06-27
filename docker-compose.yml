@@ -1,0 +1,28 @@
+# Run the gateway with:  docker compose up --build
+#
+# Compose automatically reads the local .env file for ${VAR} interpolation
+# below, so your API keys are passed in at runtime and never baked into the
+# image. Every variable has a safe default so it also boots with no .env.
+services:
+  gateway:
+    build: .
+    image: llm-gateway:latest
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      PORT: "8080"
+      GATEWAY_API_KEYS: "${GATEWAY_API_KEYS:-demo-key-123}"
+      PROVIDER_ORDER: "${PROVIDER_ORDER:-mock}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+      CACHE_ENABLED: "${CACHE_ENABLED:-true}"
+      CACHE_TTL_SECONDS: "${CACHE_TTL_SECONDS:-300}"
+      RATE_LIMIT_ENABLED: "${RATE_LIMIT_ENABLED:-true}"
+      RATE_LIMIT_MAX_REQUESTS: "${RATE_LIMIT_MAX_REQUESTS:-30}"
+      REQUEST_TIMEOUT_MS: "${REQUEST_TIMEOUT_MS:-30000}"
+      RETRY_MAX: "${RETRY_MAX:-2}"
+      CIRCUIT_FAILURE_THRESHOLD: "${CIRCUIT_FAILURE_THRESHOLD:-5}"
+      # Logs go to stdout in containers; keep file logging off.
+      LOG_TO_FILE: "false"
+    restart: unless-stopped
