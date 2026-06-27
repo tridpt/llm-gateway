@@ -1,5 +1,7 @@
 # LLM Gateway
 
+[![CI](https://github.com/tridpt/llm-gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/tridpt/llm-gateway/actions/workflows/ci.yml)
+
 A production-style gateway/proxy that sits between your application and LLM providers (OpenAI, Anthropic). It exposes an **OpenAI-compatible API** and adds the cross-cutting concerns you need to run LLMs in production:
 
 - **Multi-provider fallback** — try a primary provider, automatically fall back to others on failure
