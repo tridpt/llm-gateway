@@ -1,0 +1,114 @@
+# LLM Gateway — Tài liệu & ghi chú phỏng vấn
+
+## 1. Dự án này là gì?
+
+Một **gateway (cổng trung gian)** đứng giữa ứng dụng của bạn và các nhà cung cấp LLM (OpenAI, Anthropic). App chỉ gọi tới gateway, còn gateway lo những phần "khó nhằn" khi đưa AI lên production:
+
+- **Fallback nhiều provider**: provider chính lỗi → tự chuyển provider dự phòng
+- **Cache**: request giống nhau trả lời từ cache → tiết kiệm tiền + giảm độ trễ
+- **Cost tracking**: đếm token và quy ra USD theo bảng giá
+- **Rate limit**: giới hạn số request theo từng API key (sliding window)
+- **Streaming**: hỗ trợ SSE (trả lời từng phần như ChatGPT)
+- **Observability**: log dạng JSON + dashboard metrics realtime
+
+Điểm hay: API **tương thích OpenAI**, nên app cũ chỉ cần đổi `base_url` là cắm vào được.
+
+## 2. Vì sao công ty cần gateway?
+
+Mỗi team làm tính năng AI đều phải tự dựng lại: cache, retry, fallback, đo chi phí, giới hạn tần suất. Gateway gom tất cả vào **một chỗ duy nhất** → code ứng dụng đơn giản, và có một nơi để kiểm soát + quan sát chi phí.
+
+## 3. Luồng xử lý một request
+
+```
+client → /v1/chat/completions
+  → auth (kiểm tra Bearer key)
+  → rate limit (theo key)
+  → tra cache → nếu trúng: trả luôn (chi phí $0)
+  → chuỗi provider có fallback: mock → openai → anthropic
+  → tính token + chi phí
+  → ghi metrics + log
+```
+
+## 4. Các quyết định thiết kế (hay bị hỏi)
+
+**Tại sao API theo chuẩn OpenAI?**
+Vì hệ sinh thái (SDK, thư viện) đều nói "tiếng OpenAI". Theo chuẩn này thì khách hàng tích hợp gần như không cần sửa code. Adapter Anthropic tự dịch sang format `/v1/messages` của Claude.
+
+**Cache key tính thế nào?**
+Hash SHA-256 của các trường ảnh hưởng đến output: `model`, `messages`, `temperature`, `top_p`, `max_tokens`. Cờ `stream` bị bỏ qua để bản streaming và non-streaming dùng chung cache.
+
+**Fallback khi streaming khác gì non-streaming?**
+Non-streaming fallback thoải mái. Streaming **chỉ fallback được trước khi gửi byte đầu tiên** — vì khi đã stream dở mà đổi provider thì client nhận nội dung lẫn lộn. Code đọc chunk đầu tiên; nếu lỗi ngay từ đầu mới chuyển provider, còn đã stream rồi thì commit luôn provider đó.
+
+**Rate limit kiểu gì?**
+Sliding window: lưu mảng timestamp mỗi key, đếm số request trong cửa sổ thời gian. Chính xác hơn fixed-window (tránh dồn request ở ranh giới cửa sổ).
+
+**Cache + rate limit hiện tại là in-memory — hạn chế?**
+Chỉ đúng khi chạy 1 instance. Scale nhiều instance phải đưa state ra **Redis**. Đây là câu trả lời "ăn điểm" khi được hỏi về scaling.
+
+## 4b. Reliability (timeout / retry / circuit breaker)
+
+Mỗi lần gọi provider đi qua 3 lớp bảo vệ (cấu hình trong `.env`):
+
+1. **Timeout** (`REQUEST_TIMEOUT_MS`): gọi quá lâu thì hủy (dùng `AbortController`), tránh treo vô hạn.
+2. **Retry + exponential backoff** (`RETRY_MAX`, `RETRY_BASE_MS`): lỗi tạm thời (429, 5xx, timeout, lỗi mạng) thì thử lại **chính provider đó** với thời gian chờ tăng dần + jitter. Lỗi "cứng" (400/401/403) thì bỏ ngay, không retry (retry request sai cũng vô ích).
+3. **Circuit breaker**: một provider lỗi liên tiếp N lần thì bị "mở mạch" và bị bỏ qua trong một khoảng cooldown — gateway không phí thời gian gọi provider đang chết. Sau cooldown chuyển sang "half-open" để thử lại.
+
+Chỉ khi đã qua hết 3 lớp mà vẫn lỗi thì request mới **fallback** sang provider kế tiếp.
+
+**Vì sao 429/5xx thì retry mà 400/401 thì không?**
+429/5xx là lỗi tạm thời (server quá tải, throttling) → chờ rồi thử lại có thể thành công. 400/401/403 là lỗi từ phía request (sai tham số, sai key) → thử lại bao nhiêu lần cũng vẫn lỗi, chỉ tốn thời gian.
+
+**Circuit breaker giải quyết vấn đề gì?**
+Khi một provider chết, nếu cứ gọi rồi chờ timeout cho từng request thì latency của cả hệ thống tăng vọt. Breaker "ngắt" sớm để fail nhanh và dồn tải sang provider khỏe.
+
+## 4c. Embeddings & RAG
+
+Gateway có endpoint `POST /v1/embeddings` (chuẩn OpenAI) để biến văn bản thành **vector**. Đây là nửa "retrieval" của RAG:
+
+1. Embed các tài liệu → lưu vector (vào vector DB như Chroma/Qdrant/pgvector)
+2. Khi có câu hỏi → embed câu hỏi → tìm vector gần nhất (cosine similarity)
+3. Nhét tài liệu liên quan vào prompt → gọi `/v1/chat/completions`
+
+File `examples/semantic-search.mjs` demo bước 1–2 chạy thật qua gateway. Provider không hỗ trợ embeddings (như Anthropic) sẽ tự động bị bỏ qua trong chuỗi fallback nhờ cơ chế lọc theo "capability".
+
+**Vì sao cùng một text luôn cho ra cùng một vector?**
+Embedding là hàm tất định (deterministic) — cùng input + cùng model → cùng output. Nhờ vậy có thể cache. Mock provider của dự án dùng hash + PRNG có seed để tạo vector tất định, chạy offline cho demo.
+
+**Cosine similarity là gì?**
+Đo góc giữa 2 vector: 1 = giống hệt hướng, 0 = không liên quan, -1 = ngược nhau. Dùng để xếp hạng độ liên quan ngữ nghĩa giữa câu hỏi và tài liệu.
+
+**Đếm token bằng cách nào?**
+Ưu tiên `usage` thật mà provider trả về. Nếu không có thì ước lượng ~4 ký tự/token. Production nên dùng tokenizer thật (`tiktoken`).
+
+## 5. Cấu trúc thư mục
+
+- `src/index.js` — khởi tạo server, ráp middleware + route
+- `src/config.js` — đọc `.env` (tự viết, không cần thư viện)
+- `src/providers/` — adapter từng provider + logic fallback
+- `src/services/` — cache, cost, metrics, logger
+- `src/middleware/` — auth, rate limit
+- `src/routes/` — chat (lõi), embeddings, admin
+- `public/index.html` — dashboard
+- `examples/semantic-search.mjs` — demo RAG retrieval
+
+## 6. Hướng phát triển tiếp (để nói "next steps")
+
+- Redis cho cache + rate limit + circuit breaker (multi-instance)
+- Xuất metrics ra Prometheus/OpenTelemetry
+- Tokenizer thật thay cho ước lượng
+- Tích hợp vector DB (Chroma/Qdrant/pgvector) để hoàn thiện RAG
+- Đóng gói Docker + docker-compose (kèm Redis)
+
+## 7. Câu hỏi tự luyện
+
+1. Gateway giúp tiết kiệm chi phí LLM bằng những cơ chế nào?
+2. Vì sao streaming không thể fallback giữa chừng?
+3. Sliding window khác fixed window ở điểm nào?
+4. Nếu chạy 3 instance sau load balancer, cache và rate limit sẽ sai ở đâu, sửa thế nào?
+5. Làm sao đảm bảo cache không trả nhầm kết quả khi tham số sinh (temperature) khác nhau?
+6. Vì sao lỗi 429/5xx thì retry mà 400/401 thì không?
+7. Circuit breaker có 3 trạng thái nào, chuyển trạng thái khi nào?
+8. Vì sao streaming không thể retry/fallback sau khi đã gửi byte đầu tiên?
+9. Embeddings dùng để làm gì trong RAG? Mô tả luồng 3 bước.
+10. Vì sao embedding của cùng một text luôn giống nhau, và điều đó giúp cache thế nào?

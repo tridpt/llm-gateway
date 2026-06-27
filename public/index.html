@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LLM Gateway · Observability</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: #0d1117; color: #e6edf3; padding: 24px;
+    }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    .sub { color: #8b949e; font-size: 13px; margin-bottom: 20px; }
+    .bar { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    input, button {
+      font-size: 13px; padding: 8px 12px; border-radius: 6px;
+      border: 1px solid #30363d; background: #161b22; color: #e6edf3;
+    }
+    button { cursor: pointer; }
+    button:hover { background: #21262d; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px; }
+    .card .label { color: #8b949e; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+    .card .value { font-size: 26px; font-weight: 600; margin-top: 6px; }
+    .card .value.green { color: #3fb950; }
+    .card .value.red { color: #f85149; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 24px; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #21262d; }
+    th { color: #8b949e; font-weight: 500; }
+    h2 { font-size: 14px; color: #8b949e; text-transform: uppercase; letter-spacing: .04em; }
+    .pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #21262d; }
+    .pill.hit { background: #1a3d2b; color: #3fb950; }
+    .pill.err { background: #3d1a1a; color: #f85149; }
+    code { color: #79c0ff; }
+  </style>
+</head>
+<body>
+  <h1>LLM Gateway · Observability</h1>
+  <div class="sub">Live metrics from <code>/admin/metrics</code> · auto-refresh every 3s</div>
+
+  <div class="bar">
+    <input id="key" placeholder="Gateway API key (Bearer)" style="flex:1; min-width:220px" />
+    <button onclick="refresh()">Refresh</button>
+    <button onclick="resetMetrics()">Reset metrics</button>
+    <button onclick="clearCache()">Clear cache</button>
+  </div>
+
+  <div class="grid" id="cards"></div>
+
+  <h2>By model</h2>
+  <table id="byModel"><thead><tr><th>Model</th><th>Requests</th><th>In tok</th><th>Out tok</th><th>Cost (USD)</th></tr></thead><tbody></tbody></table>
+
+  <h2>Circuit breakers</h2>
+  <div id="circuits" style="margin-bottom:24px"></div>
+
+  <h2>Recent requests</h2>
+  <table id="recent"><thead><tr><th>Time</th><th>Model</th><th>Provider</th><th>Status</th><th>Tokens</th><th>Cost</th><th>Latency</th></tr></thead><tbody></tbody></table>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    // Persist the key locally so you don't retype it.
+    $('key').value = localStorage.getItem('gw_key') || 'demo-key-123';
+    $('key').addEventListener('input', () => localStorage.setItem('gw_key', $('key').value));
+
+    function headers() {
+      return { Authorization: 'Bearer ' + $('key').value.trim() };
+    }
+
+    async function refresh() {
+      try {
+        const res = await fetch('/admin/metrics', { headers: headers() });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const m = await res.json();
+        renderCards(m);
+        renderByModel(m.byModel);
+        renderRecent(m.recent);
+        renderCircuits(m.circuits);
+      } catch (e) {
+        $('cards').innerHTML = '<div class="card"><div class="label">Error</div><div class="value red">' + e.message + '</div></div>';
+      }
+    }
+
+    function card(label, value, cls = '') {
+      return '<div class="card"><div class="label">' + label + '</div><div class="value ' + cls + '">' + value + '</div></div>';
+    }
+
+    function renderCards(m) {
+      const t = m.totals;
+      $('cards').innerHTML = [
+        card('Requests', t.requests),
+        card('Cache hit rate', m.cacheHitRatePercent + '%', 'green'),
+        card('Errors', t.errors, t.errors ? 'red' : ''),
+        card('Fallbacks', t.fallbacks),
+        card('Rate limited', t.rateLimited),
+        card('Input tokens', t.inputTokens.toLocaleString()),
+        card('Output tokens', t.outputTokens.toLocaleString()),
+        card('Total cost', '$' + t.costUsd.toFixed(4), 'green'),
+        card('Cache size', m.cache.size + ' / ' + m.cache.maxEntries),
+        card('Active providers', (m.providers.active.join(', ') || 'none')),
+      ].join('');
+    }
+
+    function renderByModel(byModel) {
+      const rows = Object.entries(byModel || {}).map(([model, s]) =>
+        '<tr><td><code>' + model + '</code></td><td>' + (s.requests||0) + '</td><td>' +
+        (s.inputTokens||0) + '</td><td>' + (s.outputTokens||0) + '</td><td>$' +
+        (s.costUsd||0).toFixed(6) + '</td></tr>'
+      ).join('');
+      $('byModel').querySelector('tbody').innerHTML = rows || '<tr><td colspan="5">No data yet</td></tr>';
+    }
+
+    function renderRecent(recent) {
+      const rows = (recent || []).map((r) => {
+        const status = r.error ? '<span class="pill err">error</span>'
+          : r.cacheHit ? '<span class="pill hit">cache</span>'
+          : '<span class="pill">ok</span>';
+        const time = r.ts ? new Date(r.ts).toLocaleTimeString() : '';
+        const tokens = (r.inputTokens||0) + '/' + (r.outputTokens||0);
+        return '<tr><td>' + time + '</td><td><code>' + (r.model||'') + '</code></td><td>' +
+          (r.provider||'-') + '</td><td>' + status + '</td><td>' + tokens + '</td><td>$' +
+          (r.costUsd||0).toFixed(6) + '</td><td>' + (r.latencyMs||0) + 'ms</td></tr>';
+      }).join('');
+      $('recent').querySelector('tbody').innerHTML = rows || '<tr><td colspan="7">No requests yet</td></tr>';
+    }
+
+    function renderCircuits(circuits) {
+      const entries = Object.entries(circuits || {});
+      if (!entries.length) { $('circuits').innerHTML = '<span class="pill">no data</span>'; return; }
+      $('circuits').innerHTML = entries.map(([name, c]) => {
+        const cls = c.open ? 'err' : 'hit';
+        const label = c.open ? 'OPEN' : 'closed';
+        return '<span class="pill ' + cls + '" style="margin-right:8px">' + name +
+          ' · ' + label + ' · fails ' + c.failures + '</span>';
+      }).join('');
+    }
+
+    async function resetMetrics() {
+      await fetch('/admin/metrics/reset', { method: 'POST', headers: headers() });
+      refresh();
+    }
+    async function clearCache() {
+      await fetch('/admin/cache/clear', { method: 'POST', headers: headers() });
+      refresh();
+    }
+
+    refresh();
+    setInterval(refresh, 3000);
+  </script>
+</body>
+</html>

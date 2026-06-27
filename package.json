@@ -1,0 +1,25 @@
+{
+  "name": "llm-gateway",
+  "version": "1.0.0",
+  "description": "A production-style LLM gateway/proxy with caching, cost tracking, rate limiting, multi-provider fallback, logging and observability.",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node --import ./test/setup.js --test"
+  },
+  "keywords": [
+    "llm",
+    "gateway",
+    "proxy",
+    "openai",
+    "anthropic",
+    "observability",
+    "ai-engineering"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
