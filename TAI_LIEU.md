@@ -126,6 +126,21 @@ Mỗi provider nhận **nhiều API key** (phân tách bằng dấu phẩy: `GEM
 **Round-robin key khác round-robin provider (load balancing) thế nào?**
 Load balancing (mục 4d) chia tải giữa các *provider/model khác nhau* cùng phục vụ một logical model. Key rotation chia tải giữa nhiều *key của cùng một provider*. Hai tầng này hoạt động độc lập và bổ sung nhau.
 
+## 4g. Token saver (giảm token = giảm tiền)
+
+Bật `TOKEN_SAVER_ENABLED=true` để cắt request chat trước khi gửi tới provider:
+- Nén khoảng trắng thừa trong nội dung message.
+- Chỉ giữ `TOKEN_SAVER_MAX_MESSAGES` message gần nhất (không tính system).
+- Bỏ bớt message cũ nhất cho tới khi token ước lượng lọt dưới `TOKEN_SAVER_MAX_INPUT_TOKENS`.
+
+Luôn giữ lại system message và message mới nhất (để request vẫn hợp lệ). Tổng token tiết kiệm được theo dõi ở `/admin/metrics`.
+
+**Vì sao cắt được mà không hỏng hội thoại?**
+Message gần đây mang nhiều ngữ cảnh liên quan nhất; message cũ thường ít ảnh hưởng tới câu trả lời hiện tại. Giữ system (chứa chỉ dẫn) + N message cuối là cân bằng tốt giữa chi phí và chất lượng. Đây là chiến lược "sliding window" cho context.
+
+**Hàm `applyTokenSaver` là pure function — vì sao quan trọng?**
+Không mutate input, chỉ trả về bản mới + stats → dễ test, dễ suy luận, không gây tác dụng phụ ngoài ý muốn.
+
 **Đếm token bằng cách nào?**
 Ưu tiên `usage` thật mà provider trả về. Nếu không có thì ước lượng ~4 ký tự/token. Production nên dùng tokenizer thật (`tiktoken`).
 
@@ -140,6 +155,7 @@ Load balancing (mục 4d) chia tải giữa các *provider/model khác nhau* cù
 - `src/routing/router.js` — smart routing (alias, tier, load balancing, latency)
 - `src/services/budget.js` — per-key budget/quota
 - `src/services/keypool.js` — xoay vòng nhiều API key / provider
+- `src/services/tokenSaver.js` — cắt history / nén prompt giảm token
 - `public/index.html` — dashboard
 - `examples/semantic-search.mjs` — demo RAG retrieval
 - `routes.json` — cấu hình định tuyến (alias / tier / target)
@@ -171,3 +187,5 @@ Load balancing (mục 4d) chia tải giữa các *provider/model khác nhau* cù
 14. Vì sao usage budget reset được theo ngày mà không cần cron job?
 15. Multi-key rotation giúp gì? Khi một key dính 429 thì điều gì xảy ra?
 16. Key rotation khác load balancing giữa các provider thế nào?
+17. Token saver cắt context kiểu gì mà không làm hỏng hội thoại?
+18. Vì sao nên viết các hàm xử lý (router, token saver) dạng pure function?

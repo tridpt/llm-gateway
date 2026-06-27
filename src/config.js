@@ -86,6 +86,22 @@ export const config = {
   // How long a rate-limited (429) API key is rested before being retried.
   keyCooldownMs: int(process.env.KEY_COOLDOWN_SECONDS, 60) * 1000,
 
+  tokenSaver: {
+    enabled: bool(process.env.TOKEN_SAVER_ENABLED, false),
+    // Keep at most this many non-system messages (most recent kept). null = no cap.
+    maxMessages:
+      process.env.TOKEN_SAVER_MAX_MESSAGES !== undefined
+        ? int(process.env.TOKEN_SAVER_MAX_MESSAGES, 0)
+        : null,
+    // Drop oldest messages until estimated input tokens fit under this. null = off.
+    maxInputTokens:
+      process.env.TOKEN_SAVER_MAX_INPUT_TOKENS !== undefined
+        ? int(process.env.TOKEN_SAVER_MAX_INPUT_TOKENS, 0)
+        : null,
+    // Collapse runs of whitespace in message content.
+    trimWhitespace: bool(process.env.TOKEN_SAVER_TRIM_WHITESPACE, true),
+  },
+
   cache: {
     enabled: bool(process.env.CACHE_ENABLED, true),
     ttlSeconds: int(process.env.CACHE_TTL_SECONDS, 300),

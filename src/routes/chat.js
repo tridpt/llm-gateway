@@ -10,6 +10,7 @@ import { circuitBreaker, withTimeout } from '../services/reliability.js';
 import { latencyTracker } from '../services/latency.js';
 import { router } from '../routing/router.js';
 import { budgetManager } from '../services/budget.js';
+import { applyTokenSaver } from '../services/tokenSaver.js';
 
 export const chatRouter = express.Router();
 
@@ -48,6 +49,21 @@ chatRouter.post('/chat/completions', async (req, res) => {
         type: 'invalid_request_error',
       },
     });
+  }
+
+  // ── Token saver (trim history / whitespace to cut input tokens) ──
+  if (config.tokenSaver.enabled) {
+    const { messages, stats } = applyTokenSaver(body.messages, config.tokenSaver);
+    if (stats.tokensSaved > 0 || stats.droppedMessages > 0) {
+      body.messages = messages;
+      metrics.recordTokensSaved(stats.tokensSaved);
+      logger.info('Token saver applied', {
+        requestId,
+        droppedMessages: stats.droppedMessages,
+        tokensBefore: stats.tokensBefore,
+        tokensAfter: stats.tokensAfter,
+      });
+    }
   }
 
   const wantsStream = Boolean(body.stream);

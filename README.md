@@ -12,6 +12,7 @@ A production-style gateway/proxy that sits between your application and LLM prov
 - **Cost tracking** — per-request token counting and USD cost using a configurable pricing table
 - **Rate limiting** — sliding-window limits per client API key
 - **Budgets & quotas** — per-key daily request count and USD cost limits, enforced with HTTP 429
+- **Token saver** — trims long history and whitespace before calling the provider to cut input tokens
 - **Streaming** — Server-Sent Events (SSE) pass-through, plus streamed replay of cached answers
 - **Embeddings** — OpenAI-compatible `/v1/embeddings` for RAG / semantic search
 - **Observability** — structured JSONL logs, a live metrics dashboard, and a Prometheus `/metrics` endpoint
@@ -78,6 +79,7 @@ client ──► /v1/chat/completions
 | Logging | `src/services/logger.js` |
 | Auth / rate limit | `src/middleware/*` |
 | Budget / quota | `src/services/budget.js` |
+| Token saver | `src/services/tokenSaver.js` |
 | Chat route (core) | `src/routes/chat.js` |
 | Embeddings route | `src/routes/embeddings.js` |
 | Models route | `src/routes/models.js` |
@@ -249,6 +251,17 @@ the defaults (`DEFAULT_DAILY_REQUESTS`, `DEFAULT_DAILY_COST_USD`):
 A `null` limit means unlimited. Every response carries the current usage in
 `X-Budget-*` headers so clients can self-throttle. Live usage is at
 `/admin/usage` and on the dashboard.
+
+## Token saver
+
+Set `TOKEN_SAVER_ENABLED=true` to trim chat requests before they hit a provider:
+
+- collapses runs of whitespace in message content
+- keeps only the most recent `TOKEN_SAVER_MAX_MESSAGES` non-system messages
+- drops oldest messages until the estimate fits `TOKEN_SAVER_MAX_INPUT_TOKENS`
+
+System messages and the most recent message are always preserved, so the
+request stays valid. Total tokens saved is tracked in `/admin/metrics`.
 
 ## Key rotation
 

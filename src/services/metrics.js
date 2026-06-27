@@ -18,6 +18,7 @@ class Metrics {
       inputTokens: 0,
       outputTokens: 0,
       costUsd: 0,
+      tokensSaved: 0,
     };
     this.byProvider = {}; // provider -> { requests, errors, costUsd, tokens }
     this.byModel = {}; // model -> { requests, costUsd, inputTokens, outputTokens }
@@ -75,6 +76,10 @@ class Metrics {
 
   recordRateLimited() {
     this.totals.rateLimited += 1;
+  }
+
+  recordTokensSaved(n) {
+    this.totals.tokensSaved += n || 0;
   }
 
   snapshot() {
