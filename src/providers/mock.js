@@ -23,23 +23,25 @@ export const mockProvider = {
     const messages = body.messages || [];
     const lastUser = [...messages].reverse().find((m) => m.role === 'user');
     const prompt = lastUser?.content ?? '(no user message)';
-    return `[mock:${body.model || 'mock-gpt'}] You said: "${String(prompt).slice(0, 200)}". This is a simulated response from the LLM gateway.`;
+    return `[mock:${body.__model || body.model || 'mock-gpt'}] You said: "${String(prompt).slice(0, 200)}". This is a simulated response from the LLM gateway.`;
   },
 
-  async chatCompletion({ body }) {
-    const content = this._answer(body);
+  async chatCompletion({ body, model }) {
+    const useModel = model || body.model || 'mock-gpt';
+    const content = this._answer({ ...body, __model: useModel });
     const inputTokens = estimateMessagesTokens(body.messages);
     const outputTokens = estimateTokens(content);
     return {
-      model: body.model || 'mock-gpt',
+      model: useModel,
       content,
       finishReason: 'stop',
       usage: { inputTokens, outputTokens },
     };
   },
 
-  async *streamCompletion({ body }) {
-    const content = this._answer(body);
+  async *streamCompletion({ body, model }) {
+    const useModel = model || body.model || 'mock-gpt';
+    const content = this._answer({ ...body, __model: useModel });
     const words = content.split(' ');
     const inputTokens = estimateMessagesTokens(body.messages);
 

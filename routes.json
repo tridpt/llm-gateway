@@ -1,0 +1,18 @@
+{
+  "strategy": "tier",
+  "tiers": ["free", "cheap", "premium", "fallback"],
+  "aliases": {
+    "fast": "gemini-2.5-flash-lite",
+    "smart": "gemini-2.5-flash-lite"
+  },
+  "models": {
+    "gemini-2.5-flash-lite": [
+      { "provider": "gemini", "model": "gemini-2.5-flash-lite", "tier": "free" },
+      { "provider": "mock", "model": "mock-gpt", "tier": "fallback" }
+    ],
+    "balanced": [
+      { "provider": "gemini", "model": "gemini-2.5-flash-lite", "tier": "free", "weight": 2 },
+      { "provider": "mock", "model": "mock-gpt", "tier": "free", "weight": 1 }
+    ]
+  }
+}

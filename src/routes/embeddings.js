@@ -5,7 +5,8 @@ import { cache } from '../services/cache.js';
 import { metrics } from '../services/metrics.js';
 import { logger } from '../services/logger.js';
 import { computeCost } from '../services/cost.js';
-import { resolveProviderChain, withFallback } from '../providers/index.js';
+import { resolveProviderChain, executeAcrossTargets } from '../providers/index.js';
+import { router } from '../routing/router.js';
 
 export const embeddingsRouter = express.Router();
 
@@ -89,9 +90,13 @@ embeddingsRouter.post('/embeddings', async (req, res) => {
   }
 
   try {
-    const { result, provider, usedFallback } = await withFallback(
-      (p, signal) => p.embeddings({ input, model, signal }),
-      { requestId, capability: 'embeddings' }
+    const availableProviders = resolveProviderChain('embeddings').map((p) => p.name);
+    const targets = router.resolveTargets(model, availableProviders);
+
+    const { result, provider, tier, usedFallback } = await executeAcrossTargets(
+      targets,
+      (p, m, signal) => p.embeddings({ input, model: m, signal }),
+      { requestId }
     );
 
     const costUsd = computeCost(result.model, result.usage.inputTokens, 0);
@@ -104,6 +109,7 @@ embeddingsRouter.post('/embeddings', async (req, res) => {
     logger.info('Embeddings served', {
       requestId,
       provider,
+      tier,
       usedFallback,
       model: result.model,
       count: result.vectors.length,
@@ -116,6 +122,7 @@ embeddingsRouter.post('/embeddings', async (req, res) => {
       requestId,
       provider,
       model: result.model,
+      tier,
       cacheHit: false,
       usedFallback,
       inputTokens: result.usage.inputTokens,

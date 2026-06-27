@@ -5,8 +5,10 @@ import { cache } from '../services/cache.js';
 import { metrics } from '../services/metrics.js';
 import { logger } from '../services/logger.js';
 import { computeCost } from '../services/cost.js';
-import { resolveProviderChain, withFallback } from '../providers/index.js';
+import { resolveProviderChain, executeAcrossTargets, REGISTRY } from '../providers/index.js';
 import { circuitBreaker, withTimeout } from '../services/reliability.js';
+import { latencyTracker } from '../services/latency.js';
+import { router } from '../routing/router.js';
 
 export const chatRouter = express.Router();
 
@@ -123,8 +125,12 @@ chatRouter.post('/chat/completions', async (req, res) => {
 });
 
 async function handleNonStreaming(res, { requestId, body, cacheKey, startedAt }) {
-  const { result, provider, usedFallback } = await withFallback(
-    (p, signal) => p.chatCompletion({ body, signal }),
+  const availableProviders = resolveProviderChain().map((p) => p.name);
+  const targets = router.resolveTargets(body.model, availableProviders);
+
+  const { result, provider, model, tier, usedFallback } = await executeAcrossTargets(
+    targets,
+    (p, m, signal) => p.chatCompletion({ body, model: m, signal }),
     { requestId }
   );
 
@@ -138,8 +144,9 @@ async function handleNonStreaming(res, { requestId, body, cacheKey, startedAt })
   logger.info('Completion served', {
     requestId,
     provider,
+    model,
+    tier,
     usedFallback,
-    model: result.model,
     inputTokens: result.usage.inputTokens,
     outputTokens: result.usage.outputTokens,
     costUsd,
@@ -150,6 +157,7 @@ async function handleNonStreaming(res, { requestId, body, cacheKey, startedAt })
     requestId,
     provider,
     model: result.model,
+    tier,
     cacheHit: false,
     usedFallback,
     inputTokens: result.usage.inputTokens,
@@ -172,56 +180,61 @@ async function handleNonStreaming(res, { requestId, body, cacheKey, startedAt })
 }
 
 async function handleStreaming(req, res, { requestId, body, cacheKey, startedAt }) {
-  const chain = resolveProviderChain();
+  const availableProviders = resolveProviderChain().map((p) => p.name);
+  const targets = router.resolveTargets(body.model, availableProviders);
 
-  // Try each provider; only fall back if it fails before emitting any chunk.
+  // Try each target; only fall back if it fails before emitting any chunk.
   // A per-attempt timeout guards the initial connection + first chunk; once
-  // streaming has started we commit to that provider.
+  // streaming has started we commit to that target.
   let iterator;
   let firstChunk;
   let provider;
+  let model = body.model;
+  let tier;
   let usedFallback = false;
   let attemptedCount = 0;
   let lastError;
 
-  for (let i = 0; i < chain.length; i++) {
-    const p = chain[i];
+  for (const target of targets) {
+    const p = REGISTRY[target.provider];
+    if (!p) continue;
 
-    if (circuitBreaker.isOpen(p.name)) {
-      logger.warn('Skipping streaming provider, circuit is open', {
-        requestId,
-        provider: p.name,
-      });
+    if (circuitBreaker.isOpen(target.provider)) {
+      logger.warn('Skipping streaming target, circuit is open', { requestId, ...target });
       continue;
     }
 
+    const connectStart = Date.now();
     try {
       const opened = await withTimeout(config.reliability.timeoutMs, async (signal) => {
-        const gen = p.streamCompletion({ body, signal });
+        const gen = p.streamCompletion({ body, model: target.model, signal });
         const first = await gen.next();
         return { gen, first };
       });
 
       iterator = opened.gen;
       firstChunk = opened.first;
-      provider = p.name;
+      provider = target.provider;
+      model = target.model;
+      tier = target.tier;
       usedFallback = attemptedCount > 0;
-      circuitBreaker.recordSuccess(p.name);
+      latencyTracker.record(target.provider, target.model, Date.now() - connectStart);
+      circuitBreaker.recordSuccess(target.provider);
       break;
     } catch (err) {
       lastError = err;
       attemptedCount += 1;
-      circuitBreaker.recordFailure(p.name);
-      logger.warn('Streaming provider failed before first chunk, trying next', {
+      circuitBreaker.recordFailure(target.provider);
+      logger.warn('Streaming target failed before first chunk, trying next', {
         requestId,
-        provider: p.name,
+        ...target,
         error: err.message,
       });
     }
   }
 
   if (!iterator) {
-    throw lastError || new Error('No streaming provider available (all circuits open).');
+    throw lastError || new Error('No streaming target available (all circuits open).');
   }
 
   // Open the SSE stream.
@@ -265,12 +278,12 @@ async function handleStreaming(req, res, { requestId, body, cacheKey, startedAt 
   res.end();
 
   // Post-stream accounting + cache.
-  const costUsd = computeCost(body.model, usage.inputTokens, usage.outputTokens);
+  const costUsd = computeCost(model, usage.inputTokens, usage.outputTokens);
   const latencyMs = Date.now() - startedAt;
 
   if (config.cache.enabled && fullText) {
     cache.set(cacheKey, {
-      model: body.model,
+      model,
       content: fullText,
       finishReason,
       usage,
@@ -281,8 +294,9 @@ async function handleStreaming(req, res, { requestId, body, cacheKey, startedAt 
   logger.info('Streaming completion served', {
     requestId,
     provider,
+    model,
+    tier,
     usedFallback,
-    model: body.model,
     outputTokens: usage.outputTokens,
     costUsd,
     latencyMs,
@@ -291,7 +305,8 @@ async function handleStreaming(req, res, { requestId, body, cacheKey, startedAt 
   metrics.recordRequest({
     requestId,
     provider,
-    model: body.model,
+    model,
+    tier,
     cacheHit: false,
     usedFallback,
     inputTokens: usage.inputTokens,

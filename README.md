@@ -3,6 +3,7 @@
 A production-style gateway/proxy that sits between your application and LLM providers (OpenAI, Anthropic). It exposes an **OpenAI-compatible API** and adds the cross-cutting concerns you need to run LLMs in production:
 
 - **Multi-provider fallback** — try a primary provider, automatically fall back to others on failure
+- **Smart routing** — model aliases, tiered routing (free → cheap → premium), weighted round-robin load balancing, and latency-based routing
 - **Reliability** — per-request timeouts, retry with exponential backoff, and a per-provider circuit breaker
 - **Response caching** — identical requests are served from cache (huge cost & latency win)
 - **Cost tracking** — per-request token counting and USD cost using a configurable pricing table
@@ -41,6 +42,8 @@ client ──► /v1/chat/completions
 | Config / `.env` loader | `src/config.js` |
 | Provider adapters | `src/providers/{mock,openai,anthropic,gemini}.js` |
 | Fallback logic | `src/providers/index.js` |
+| Smart router | `src/routing/router.js` |
+| Latency tracker | `src/services/latency.js` |
 | Cache (TTL + LRU) | `src/services/cache.js` |
 | Reliability (timeout/retry/circuit) | `src/services/reliability.js` |
 | Cost & tokens | `src/services/cost.js` |
@@ -140,6 +143,7 @@ Because the gateway speaks the OpenAI request shape, the Anthropic adapter trans
 | POST | `/v1/chat/completions` | OpenAI-compatible chat completion (auth + rate limited) |
 | POST | `/v1/embeddings` | OpenAI-compatible embeddings for RAG / semantic search |
 | GET | `/admin/metrics` | Aggregate metrics + recent requests |
+| GET | `/admin/routes` | Active routing config (aliases, tiers, models) |
 | GET | `/metrics` | Prometheus exposition format (for scraping/Grafana) |
 | POST | `/admin/metrics/reset` | Reset counters |
 | POST | `/admin/cache/clear` | Empty the cache |
@@ -158,6 +162,39 @@ npm test
 ```
 
 Uses Node's built-in test runner against the mock provider — no keys or network needed.
+
+## Smart routing
+
+Routing is driven by an optional `routes.json` at the project root. It turns a
+requested model name into an ordered list of concrete targets (`provider` +
+`model`) that form the fallback chain:
+
+```json
+{
+  "strategy": "tier",
+  "tiers": ["free", "cheap", "premium", "fallback"],
+  "aliases": { "fast": "gemini-2.5-flash-lite", "smart": "gemini-2.5-pro" },
+  "models": {
+    "gemini-2.5-flash-lite": [
+      { "provider": "gemini", "model": "gemini-2.5-flash-lite", "tier": "free" },
+      { "provider": "mock",   "model": "mock-gpt",              "tier": "fallback" }
+    ],
+    "balanced": [
+      { "provider": "gemini", "model": "gemini-2.5-flash-lite", "tier": "free", "weight": 2 },
+      { "provider": "mock",   "model": "mock-gpt",              "tier": "free", "weight": 1 }
+    ]
+  }
+}
+```
+
+- **Aliases** — clients call a stable virtual name (`fast`, `smart`); you remap the backend without touching client code.
+- **Tiered routing** — targets are grouped by tier and tried in the order listed in `tiers` (e.g. cheapest first). Failover moves down the tiers.
+- **Load balancing** — multiple same-tier targets are spread via weighted round-robin (`weight`). Above, `gemini` gets ~2/3 of `balanced` traffic.
+- **Latency routing** — set `ROUTING_STRATEGY=latency` (or `strategy` in the file) to order same-tier targets by observed EWMA latency, fastest first. Unmeasured targets are tried first to gather data.
+
+If a model isn't in `routes.json`, the gateway uses the default behaviour: try
+each configured provider in `PROVIDER_ORDER` with the requested model name.
+Routing state is visible at `/admin/routes` and `/admin/metrics`.
 
 ## Reliability
 

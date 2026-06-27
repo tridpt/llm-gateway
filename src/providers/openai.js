@@ -13,14 +13,14 @@ export const openaiProvider = {
     return Boolean(config.openai.apiKey);
   },
 
-  async chatCompletion({ body, signal }) {
+  async chatCompletion({ body, model, signal }) {
     const res = await fetch(`${config.openai.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${config.openai.apiKey}`,
       },
-      body: JSON.stringify({ ...body, stream: false }),
+      body: JSON.stringify({ ...body, model: model || body.model, stream: false }),
       signal,
     });
 
@@ -43,7 +43,7 @@ export const openaiProvider = {
     };
   },
 
-  async *streamCompletion({ body, signal }) {
+  async *streamCompletion({ body, model, signal }) {
     const res = await fetch(`${config.openai.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -53,6 +53,7 @@ export const openaiProvider = {
       // Ask OpenAI to include usage in the final streamed chunk.
       body: JSON.stringify({
         ...body,
+        model: model || body.model,
         stream: true,
         stream_options: { include_usage: true },
       }),

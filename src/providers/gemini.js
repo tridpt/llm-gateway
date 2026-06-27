@@ -28,11 +28,11 @@ export const geminiProvider = {
     };
   },
 
-  async chatCompletion({ body, signal }) {
+  async chatCompletion({ body, model, signal }) {
     const res = await fetch(`${config.gemini.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: this._headers(),
-      body: JSON.stringify({ ...body, stream: false }),
+      body: JSON.stringify({ ...body, model: model || body.model, stream: false }),
       signal,
     });
 
@@ -55,11 +55,11 @@ export const geminiProvider = {
     };
   },
 
-  async *streamCompletion({ body, signal }) {
+  async *streamCompletion({ body, model, signal }) {
     const res = await fetch(`${config.gemini.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: this._headers(),
-      body: JSON.stringify({ ...body, stream: true }),
+      body: JSON.stringify({ ...body, model: model || body.model, stream: true }),
       signal,
     });
 

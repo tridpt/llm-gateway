@@ -21,6 +21,7 @@ class Metrics {
     };
     this.byProvider = {}; // provider -> { requests, errors, costUsd, tokens }
     this.byModel = {}; // model -> { requests, costUsd, inputTokens, outputTokens }
+    this.byTier = {}; // tier -> { requests, costUsd }
     this.recent = []; // rolling window of recent request summaries
     this.maxRecent = 100;
   }
@@ -61,6 +62,13 @@ class Metrics {
       });
     }
 
+    if (summary.tier) {
+      this._bump(this.byTier, summary.tier, {
+        requests: 1,
+        costUsd: summary.costUsd || 0,
+      });
+    }
+
     this.recent.unshift(summary);
     if (this.recent.length > this.maxRecent) this.recent.pop();
   }
@@ -86,6 +94,7 @@ class Metrics {
       cacheHitRatePercent: cacheHitRate,
       byProvider: this.byProvider,
       byModel: this.byModel,
+      byTier: this.byTier,
       recent: this.recent.slice(0, 20),
     };
   }

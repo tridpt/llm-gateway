@@ -46,8 +46,8 @@ export const anthropicProvider = {
     };
   },
 
-  async chatCompletion({ body, signal }) {
-    const payload = toAnthropicPayload(body);
+  async chatCompletion({ body, model, signal }) {
+    const payload = toAnthropicPayload({ ...body, model: model || body.model });
     const res = await fetch(`${config.anthropic.baseUrl}/messages`, {
       method: 'POST',
       headers: this._headers(),
@@ -77,8 +77,8 @@ export const anthropicProvider = {
     };
   },
 
-  async *streamCompletion({ body, signal }) {
-    const payload = toAnthropicPayload(body);
+  async *streamCompletion({ body, model, signal }) {
+    const payload = toAnthropicPayload({ ...body, model: model || body.model });
     const res = await fetch(`${config.anthropic.baseUrl}/messages`, {
       method: 'POST',
       headers: this._headers(),

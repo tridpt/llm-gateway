@@ -1,6 +1,7 @@
 import { config } from '../config.js';
 import { logger } from '../services/logger.js';
 import { circuitBreaker, withRetry, withTimeout } from '../services/reliability.js';
+import { latencyTracker } from '../services/latency.js';
 import { mockProvider } from './mock.js';
 import { openaiProvider } from './openai.js';
 import { anthropicProvider } from './anthropic.js';
@@ -111,3 +112,76 @@ export async function withFallback(run, { requestId, capability } = {}) {
 }
 
 export { REGISTRY };
+
+/**
+ * Execute an operation across an ordered list of route targets, with the full
+ * reliability stack per attempt (circuit breaker, timeout, retry+backoff) and
+ * fallback to the next target. Records latency on success for latency routing.
+ *
+ * @param {Array<{provider, model, tier}>} targets - ordered fallback chain
+ * @param {(provider, model, signal) => Promise<T>} run
+ * @returns {Promise<{ result, provider, model, tier, usedFallback, attempts }>}
+ */
+export async function executeAcrossTargets(targets, run, { requestId } = {}) {
+  if (!targets || targets.length === 0) {
+    throw new Error('No route targets available for this request.');
+  }
+
+  const attempts = [];
+  let lastError;
+  let firstAttempted = -1;
+
+  for (let i = 0; i < targets.length; i++) {
+    const target = targets[i];
+    const provider = REGISTRY[target.provider];
+    if (!provider) {
+      attempts.push({ ...target, skipped: 'unknown_provider' });
+      continue;
+    }
+
+    if (circuitBreaker.isOpen(target.provider)) {
+      attempts.push({ ...target, skipped: 'circuit_open' });
+      logger.warn('Skipping target, circuit is open', { requestId, ...target });
+      continue;
+    }
+
+    if (firstAttempted === -1) firstAttempted = i;
+
+    const startedAt = Date.now();
+    try {
+      const result = await withRetry(
+        () =>
+          withTimeout(config.reliability.timeoutMs, (signal) =>
+            run(provider, target.model, signal)
+          ),
+        { requestId, provider: target.provider }
+      );
+
+      latencyTracker.record(target.provider, target.model, Date.now() - startedAt);
+      circuitBreaker.recordSuccess(target.provider);
+      return {
+        result,
+        provider: target.provider,
+        model: target.model,
+        tier: target.tier,
+        usedFallback: i > firstAttempted,
+        attempts,
+      };
+    } catch (err) {
+      lastError = err;
+      circuitBreaker.recordFailure(target.provider);
+      attempts.push({ ...target, error: err.message });
+      logger.warn('Target failed after retries, trying next', {
+        requestId,
+        ...target,
+        error: err.message,
+      });
+    }
+  }
+
+  const error = new Error(
+    `All route targets failed. Last error: ${lastError?.message || 'unknown'}`
+  );
+  error.attempts = attempts;
+  throw error;
+}
