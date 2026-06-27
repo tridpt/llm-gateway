@@ -21,6 +21,13 @@ A production-style gateway/proxy that sits between your application and LLM prov
 
 Built with Node.js (ESM) and Express. Zero AI SDK dependencies — providers are thin `fetch` adapters, which keeps the data flow easy to read and reason about.
 
+## Documentation
+
+- [API Reference](docs/API.md) — every endpoint, request/response shapes, errors
+- [Configuration Reference](docs/CONFIGURATION.md) — all env vars, `routes.json`, `budgets.json`
+- [Architecture & Design](docs/ARCHITECTURE.md) — request lifecycle, module map, design decisions
+- [TAI_LIEU.md](TAI_LIEU.md) — Vietnamese deep-dive + interview Q&A
+
 ## Why this exists
 
 Every team that ships LLM features rebuilds the same plumbing: caching, retries, fallback, cost dashboards, rate limits. A gateway centralizes that so application code stays simple and you get one place to observe and control spend.
