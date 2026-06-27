@@ -10,6 +10,7 @@ import { budgetGuard } from './middleware/budget.js';
 import { chatRouter } from './routes/chat.js';
 import { embeddingsRouter } from './routes/embeddings.js';
 import { modelsRouter } from './routes/models.js';
+import { anthropicRouter } from './routes/anthropic.js';
 import { adminRouter } from './routes/admin.js';
 import { resolveProviderChain } from './providers/index.js';
 
@@ -41,6 +42,7 @@ export function createApp() {
   // LLM API — authenticated, budget-checked, and rate limited.
   app.use('/v1', authenticate, budgetGuard, rateLimit, chatRouter);
   app.use('/v1', authenticate, budgetGuard, rateLimit, embeddingsRouter);
+  app.use('/v1', authenticate, budgetGuard, rateLimit, anthropicRouter);
   // Model catalogue — authenticated only (cheap, not metered).
   app.use('/v1', authenticate, modelsRouter);
 
@@ -53,6 +55,7 @@ export function createApp() {
       endpoints: {
         chat: 'POST /v1/chat/completions',
         embeddings: 'POST /v1/embeddings',
+        messages: 'POST /v1/messages (Anthropic-compatible)',
         models: 'GET /v1/models',
         metrics: 'GET /admin/metrics',
         prometheus: 'GET /metrics',

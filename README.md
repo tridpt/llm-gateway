@@ -15,6 +15,7 @@ A production-style gateway/proxy that sits between your application and LLM prov
 - **Token saver** — trims long history and whitespace before calling the provider to cut input tokens
 - **Streaming** — Server-Sent Events (SSE) pass-through, plus streamed replay of cached answers
 - **Embeddings** — OpenAI-compatible `/v1/embeddings` for RAG / semantic search
+- **Anthropic-compatible** — `/v1/messages` endpoint, so Claude SDK / Claude Code clients can point at the gateway too
 - **Observability** — structured JSONL logs, a live metrics dashboard, and a Prometheus `/metrics` endpoint
 - **Gateway auth** — clients authenticate with `Authorization: Bearer <key>`
 
@@ -82,6 +83,7 @@ client ──► /v1/chat/completions
 | Token saver | `src/services/tokenSaver.js` |
 | Chat route (core) | `src/routes/chat.js` |
 | Embeddings route | `src/routes/embeddings.js` |
+| Anthropic route | `src/routes/anthropic.js` |
 | Models route | `src/routes/models.js` |
 | Admin route | `src/routes/admin.js` |
 | Dashboard | `public/index.html` |
@@ -139,6 +141,21 @@ node examples/semantic-search.mjs "how do you stop calling a failing provider?"
 EMBED_MODEL=mock-embed node examples/semantic-search.mjs "your query"
 ```
 
+### Anthropic-compatible endpoint
+
+Clients that speak the Anthropic Messages API can use the same gateway:
+
+```bash
+curl -X POST http://localhost:8080/v1/messages \
+  -H "Authorization: Bearer demo-key-123" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gemini-2.5-flash-lite","max_tokens":100,"messages":[{"role":"user","content":"hello"}]}'
+```
+
+The gateway translates the Anthropic request to its internal format, runs the
+full pipeline (routing, fallback, cache, budget…), and translates the response
+(and SSE stream) back to Anthropic shape.
+
 ## Using real providers
 
 Edit `.env`:
@@ -173,6 +190,7 @@ Because the gateway speaks the OpenAI request shape, the Anthropic adapter trans
 |--------|------|-------------|
 | POST | `/v1/chat/completions` | OpenAI-compatible chat completion (auth + rate limited) |
 | POST | `/v1/embeddings` | OpenAI-compatible embeddings for RAG / semantic search |
+| POST | `/v1/messages` | Anthropic-compatible Messages API (translated in & out) |
 | GET | `/v1/models` | OpenAI-compatible model catalogue (includes aliases) |
 | GET | `/admin/metrics` | Aggregate metrics + recent requests |
 | GET | `/admin/routes` | Active routing config (aliases, tiers, models) |

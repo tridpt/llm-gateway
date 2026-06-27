@@ -185,3 +185,59 @@ export async function executeAcrossTargets(targets, run, { requestId } = {}) {
   error.attempts = attempts;
   throw error;
 }
+
+/**
+ * Open a streaming response across route targets. Falls back to the next
+ * target only if a target fails before emitting its first chunk (you cannot
+ * cleanly switch providers mid-stream). Applies per-attempt timeout + circuit
+ * breaker and records connection latency.
+ *
+ * @param {Array<{provider, model, tier}>} targets
+ * @param {(provider, model, signal) => AsyncGenerator} run
+ * @returns {Promise<{iterator, firstChunk, provider, model, tier, usedFallback}>}
+ */
+export async function openStreamAcrossTargets(targets, run, { requestId } = {}) {
+  let attemptedCount = 0;
+  let lastError;
+
+  for (const target of targets) {
+    const provider = REGISTRY[target.provider];
+    if (!provider) continue;
+
+    if (circuitBreaker.isOpen(target.provider)) {
+      logger.warn('Skipping streaming target, circuit is open', { requestId, ...target });
+      continue;
+    }
+
+    const connectStart = Date.now();
+    try {
+      const opened = await withTimeout(config.reliability.timeoutMs, async (signal) => {
+        const gen = run(provider, target.model, signal);
+        const first = await gen.next();
+        return { gen, first };
+      });
+
+      latencyTracker.record(target.provider, target.model, Date.now() - connectStart);
+      circuitBreaker.recordSuccess(target.provider);
+      return {
+        iterator: opened.gen,
+        firstChunk: opened.first,
+        provider: target.provider,
+        model: target.model,
+        tier: target.tier,
+        usedFallback: attemptedCount > 0,
+      };
+    } catch (err) {
+      lastError = err;
+      attemptedCount += 1;
+      circuitBreaker.recordFailure(target.provider);
+      logger.warn('Streaming target failed before first chunk, trying next', {
+        requestId,
+        ...target,
+        error: err.message,
+      });
+    }
+  }
+
+  throw lastError || new Error('No streaming target available (all circuits open).');
+}

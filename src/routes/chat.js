@@ -5,9 +5,7 @@ import { cache } from '../services/cache.js';
 import { metrics } from '../services/metrics.js';
 import { logger } from '../services/logger.js';
 import { computeCost } from '../services/cost.js';
-import { resolveProviderChain, executeAcrossTargets, REGISTRY } from '../providers/index.js';
-import { circuitBreaker, withTimeout } from '../services/reliability.js';
-import { latencyTracker } from '../services/latency.js';
+import { resolveProviderChain, executeAcrossTargets, openStreamAcrossTargets } from '../providers/index.js';
 import { router } from '../routing/router.js';
 import { budgetManager } from '../services/budget.js';
 import { applyTokenSaver } from '../services/tokenSaver.js';
@@ -202,59 +200,12 @@ async function handleStreaming(req, res, { requestId, body, cacheKey, startedAt,
   const availableProviders = resolveProviderChain().map((p) => p.name);
   const targets = router.resolveTargets(body.model, availableProviders);
 
-  // Try each target; only fall back if it fails before emitting any chunk.
-  // A per-attempt timeout guards the initial connection + first chunk; once
-  // streaming has started we commit to that target.
-  let iterator;
-  let firstChunk;
-  let provider;
-  let model = body.model;
-  let tier;
-  let usedFallback = false;
-  let attemptedCount = 0;
-  let lastError;
-
-  for (const target of targets) {
-    const p = REGISTRY[target.provider];
-    if (!p) continue;
-
-    if (circuitBreaker.isOpen(target.provider)) {
-      logger.warn('Skipping streaming target, circuit is open', { requestId, ...target });
-      continue;
-    }
-
-    const connectStart = Date.now();
-    try {
-      const opened = await withTimeout(config.reliability.timeoutMs, async (signal) => {
-        const gen = p.streamCompletion({ body, model: target.model, signal });
-        const first = await gen.next();
-        return { gen, first };
-      });
-
-      iterator = opened.gen;
-      firstChunk = opened.first;
-      provider = target.provider;
-      model = target.model;
-      tier = target.tier;
-      usedFallback = attemptedCount > 0;
-      latencyTracker.record(target.provider, target.model, Date.now() - connectStart);
-      circuitBreaker.recordSuccess(target.provider);
-      break;
-    } catch (err) {
-      lastError = err;
-      attemptedCount += 1;
-      circuitBreaker.recordFailure(target.provider);
-      logger.warn('Streaming target failed before first chunk, trying next', {
-        requestId,
-        ...target,
-        error: err.message,
-      });
-    }
-  }
-
-  if (!iterator) {
-    throw lastError || new Error('No streaming target available (all circuits open).');
-  }
+  const { iterator, firstChunk, provider, model, tier, usedFallback } =
+    await openStreamAcrossTargets(
+      targets,
+      (p, m, signal) => p.streamCompletion({ body, model: m, signal }),
+      { requestId }
+    );
 
   // Open the SSE stream.
   res.setHeader('Content-Type', 'text/event-stream');
