@@ -9,7 +9,7 @@ A production-style gateway/proxy that sits between your application and LLM prov
 - **Rate limiting** — sliding-window limits per client API key
 - **Streaming** — Server-Sent Events (SSE) pass-through, plus streamed replay of cached answers
 - **Embeddings** — OpenAI-compatible `/v1/embeddings` for RAG / semantic search
-- **Observability** — structured JSONL logs + a live metrics dashboard
+- **Observability** — structured JSONL logs, a live metrics dashboard, and a Prometheus `/metrics` endpoint
 - **Gateway auth** — clients authenticate with `Authorization: Bearer <key>`
 
 Built with Node.js (ESM) and Express. Zero AI SDK dependencies — providers are thin `fetch` adapters, which keeps the data flow easy to read and reason about.
@@ -140,6 +140,7 @@ Because the gateway speaks the OpenAI request shape, the Anthropic adapter trans
 | POST | `/v1/chat/completions` | OpenAI-compatible chat completion (auth + rate limited) |
 | POST | `/v1/embeddings` | OpenAI-compatible embeddings for RAG / semantic search |
 | GET | `/admin/metrics` | Aggregate metrics + recent requests |
+| GET | `/metrics` | Prometheus exposition format (for scraping/Grafana) |
 | POST | `/admin/metrics/reset` | Reset counters |
 | POST | `/admin/cache/clear` | Empty the cache |
 | GET | `/admin/pricing` | Current pricing table |

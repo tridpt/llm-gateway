@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
 import { logger } from './services/logger.js';
+import { metrics } from './services/metrics.js';
 import { authenticate } from './middleware/auth.js';
 import { rateLimit } from './middleware/rateLimit.js';
 import { chatRouter } from './routes/chat.js';
@@ -25,6 +26,13 @@ export function createApp() {
     });
   });
 
+  // Prometheus scrape endpoint (text exposition format, unauthenticated by
+  // convention so scrapers can read it). Pair with Grafana for dashboards.
+  app.get('/metrics', (req, res) => {
+    res.set('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+    res.send(metrics.toPrometheus());
+  });
+
   // Static observability dashboard.
   app.use('/dashboard', express.static(path.join(__dirname, '..', 'public')));
 
@@ -42,6 +50,7 @@ export function createApp() {
         chat: 'POST /v1/chat/completions',
         embeddings: 'POST /v1/embeddings',
         metrics: 'GET /admin/metrics',
+        prometheus: 'GET /metrics',
         dashboard: 'GET /dashboard',
         health: 'GET /health',
       },
