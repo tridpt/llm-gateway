@@ -7,11 +7,15 @@ import { metrics } from './services/metrics.js';
 import { authenticate } from './middleware/auth.js';
 import { rateLimit } from './middleware/rateLimit.js';
 import { budgetGuard } from './middleware/budget.js';
+import { budgetManager } from './services/budget.js';
+import { team } from './services/team.js';
 import { chatRouter } from './routes/chat.js';
 import { embeddingsRouter } from './routes/embeddings.js';
 import { modelsRouter } from './routes/models.js';
 import { anthropicRouter } from './routes/anthropic.js';
 import { adminRouter } from './routes/admin.js';
+import { usageRouter } from './routes/usage.js';
+import { conversationsRouter } from './routes/conversations.js';
 import { resolveProviderChain } from './providers/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -19,6 +23,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export function createApp() {
   const app = express();
   app.use(express.json({ limit: '2mb' }));
+
+  // Team members' per-person daily limits take precedence over budgets.json /
+  // defaults. Wired here (not inside budget.js) to avoid an import cycle.
+  budgetManager.limitResolver = (key) => team.getLimits(key);
 
   // Health check (no auth) — useful for load balancers and uptime monitors.
   app.get('/health', (req, res) => {
@@ -33,18 +41,26 @@ export function createApp() {
   // convention so scrapers can read it). Pair with Grafana for dashboards.
   app.get('/metrics', (req, res) => {
     res.set('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
-    res.send(metrics.toPrometheus());
+    const budgetText = budgetManager.toPrometheus((key) => team.get(key)?.name);
+    res.send(metrics.toPrometheus() + budgetText);
   });
 
   // Static observability dashboard.
   app.use('/dashboard', express.static(path.join(__dirname, '..', 'public')));
 
+  // Self-hosted team chat UI (a "ChatGPT for your team" front end that talks
+  // to this gateway: shared provider keys, per-user budgets).
+  app.use('/chat', express.static(path.join(__dirname, '..', 'public', 'chat')));
+
   // LLM API — authenticated, budget-checked, and rate limited.
   app.use('/v1', authenticate, budgetGuard, rateLimit, chatRouter);
   app.use('/v1', authenticate, budgetGuard, rateLimit, embeddingsRouter);
   app.use('/v1', authenticate, budgetGuard, rateLimit, anthropicRouter);
-  // Model catalogue — authenticated only (cheap, not metered).
+  // Model catalogue + self-service usage — authenticated only (cheap, not metered).
   app.use('/v1', authenticate, modelsRouter);
+  app.use('/v1', authenticate, usageRouter);
+  // Conversation sync — authenticated, scoped to the caller's key.
+  app.use('/v1', authenticate, conversationsRouter);
 
   // Admin/observability — authenticated (reuses gateway keys).
   app.use('/admin', authenticate, adminRouter);
@@ -57,9 +73,11 @@ export function createApp() {
         embeddings: 'POST /v1/embeddings',
         messages: 'POST /v1/messages (Anthropic-compatible)',
         models: 'GET /v1/models',
+        usage: 'GET /v1/usage (your own budget)',
         metrics: 'GET /admin/metrics',
         prometheus: 'GET /metrics',
         dashboard: 'GET /dashboard',
+        teamChat: 'GET /chat',
         health: 'GET /health',
       },
     });

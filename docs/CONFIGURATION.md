@@ -82,6 +82,12 @@ Real environment variables always win over `.env`.
 | `LOG_TO_FILE` | `true` | Write JSONL logs to disk (off in containers). |
 | `LOG_DIR` | `logs` | Log directory. |
 
+### Encryption at rest
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATA_ENCRYPTION_KEY` | _(unset)_ | Passphrase that encrypts `team.json` (member API keys) and `conversations.json` (chat history) with AES-256-GCM. Unset = plaintext. Plaintext files migrate to encrypted on next write. Losing the key makes encrypted files unrecoverable. |
+
 ## routes.json
 
 Optional. Maps requested model names (or aliases) to ordered route targets.

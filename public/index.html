@@ -20,6 +20,11 @@
     }
     button { cursor: pointer; }
     button:hover { background: #21262d; }
+    .linkbtn {
+      font-size: 13px; padding: 8px 12px; border-radius: 6px; text-decoration: none;
+      border: 1px solid #1f6feb; background: #1f6feb; color: #fff; display: inline-flex; align-items: center;
+    }
+    .linkbtn:hover { filter: brightness(1.1); }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
     .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px; }
     .card .label { color: #8b949e; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
@@ -45,6 +50,7 @@
     <button onclick="refresh()">Refresh</button>
     <button onclick="resetMetrics()">Reset metrics</button>
     <button onclick="clearCache()">Clear cache</button>
+    <a href="/chat" target="_blank" class="linkbtn">Team chat ↗</a>
   </div>
 
   <div class="grid" id="cards"></div>
@@ -57,6 +63,10 @@
 
   <h2>API key pools</h2>
   <div id="keypools" style="margin-bottom:24px"></div>
+
+  <h2>Team members</h2>
+  <div id="teamNote" class="sub" style="margin-bottom:8px"></div>
+  <table id="team"><thead><tr><th>Name</th><th>Key</th><th>Today</th><th>Limits</th><th>Role</th><th>Status</th></tr></thead><tbody></tbody></table>
 
   <h2>Per-key budget usage</h2>
   <table id="budgets"><thead><tr><th>API key</th><th>Requests</th><th>Cost (USD)</th><th>Limits</th></tr></thead><tbody></tbody></table>
@@ -88,6 +98,41 @@
       } catch (e) {
         $('cards').innerHTML = '<div class="card"><div class="label">Error</div><div class="value red">' + e.message + '</div></div>';
       }
+      loadTeam();
+    }
+
+    async function loadTeam() {
+      const note = $('teamNote');
+      const tbody = $('team').querySelector('tbody');
+      try {
+        const res = await fetch('/admin/team', { headers: headers() });
+        if (res.status === 403) {
+          note.textContent = 'Sign in with an admin key to view and manage the team (use the chat UI to add members).';
+          tbody.innerHTML = '<tr><td colspan="6">—</td></tr>';
+          return;
+        }
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        const members = data.members || [];
+        note.textContent = members.length + ' member(s) · manage them in the Team chat UI';
+        tbody.innerHTML = members.map((m) => {
+          const u = m.usage || {};
+          const lim = (v, unit) => v == null ? '∞' : (unit === '$' ? '$' + v : v + unit);
+          const maskKey = m.key.length > 8 ? m.key.slice(0,4) + '…' + m.key.slice(-4) : m.key;
+          const role = m.admin ? '<span class="pill" style="background:#1c2d4d;color:#79b8ff">admin</span>' : 'member';
+          const status = m.disabled ? '<span class="pill err">disabled</span>' : '<span class="pill hit">active</span>';
+          return '<tr><td>' + escapeHtml(m.name) + '</td><td><code>' + maskKey + '</code></td><td>' +
+            (u.requests||0) + ' req · $' + (u.costUsd||0).toFixed(4) + '</td><td>' +
+            lim(m.dailyRequests,' req') + ' · ' + lim(m.dailyCostUsd,'$') + '</td><td>' +
+            role + '</td><td>' + status + '</td></tr>';
+        }).join('') || '<tr><td colspan="6">No members yet</td></tr>';
+      } catch (e) {
+        note.textContent = 'Team: ' + e.message;
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 
     function card(label, value, cls = '') {

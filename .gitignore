@@ -3,3 +3,8 @@ node_modules/
 logs/
 *.log
 .DS_Store
+
+# Runtime team store (created/managed via the admin UI)
+team.json
+# Server-side conversation history (synced from the chat UI)
+conversations.json

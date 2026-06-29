@@ -4,6 +4,19 @@ import { config } from '../config.js';
 import { logger } from './logger.js';
 
 /**
+ * Build a Prometheus label set for a budget key, escaping per the exposition
+ * format (backslash, double-quote, newline). `name` is optional.
+ */
+function escapeLabel(v) {
+  return String(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
+}
+function labelsFor(key, name) {
+  const parts = [`key="${escapeLabel(key)}"`];
+  if (name) parts.push(`name="${escapeLabel(name)}"`);
+  return parts.join(',');
+}
+
+/**
  * Per-key budget / quota manager.
  *
  * Tracks each API key's usage for the current day (UTC) and enforces two
@@ -24,6 +37,10 @@ export class BudgetManager {
     this.perKey = perKey;
     this.now = now;
     this.usage = new Map(); // key -> { date, requests, costUsd }
+    // Optional hook: (key) => { dailyRequests, dailyCostUsd } | null.
+    // Lets a runtime store (e.g. the team manager) override per-key limits
+    // without this module importing it (avoids a circular dependency).
+    this.limitResolver = null;
   }
 
   _today() {
@@ -31,6 +48,13 @@ export class BudgetManager {
   }
 
   getLimits(key) {
+    const resolved = this.limitResolver ? this.limitResolver(key) : null;
+    if (resolved) {
+      return {
+        dailyRequests: resolved.dailyRequests ?? this.defaultLimits.dailyRequests,
+        dailyCostUsd: resolved.dailyCostUsd ?? this.defaultLimits.dailyCostUsd,
+      };
+    }
     const override = this.perKey[key] || {};
     return {
       dailyRequests: override.dailyRequests ?? this.defaultLimits.dailyRequests,
@@ -104,6 +128,33 @@ export class BudgetManager {
       };
     }
     return out;
+  }
+
+  /**
+   * Render per-key usage in Prometheus exposition format. `nameLabel` maps a
+   * key to a human label (e.g. a team member name); keys with no usage today
+   * are skipped. Kept here so the /metrics route can append it to the global
+   * metrics without this module importing the team store.
+   */
+  toPrometheus(nameLabel = () => null) {
+    const lines = [];
+    const entries = [...this.usage.entries()];
+    if (!entries.length) return '';
+
+    lines.push('# HELP llmgw_budget_requests_used Requests used today per key');
+    lines.push('# TYPE llmgw_budget_requests_used gauge');
+    for (const [key, b] of entries) {
+      lines.push(`llmgw_budget_requests_used{${labelsFor(key, nameLabel(key))}} ${b.requests}`);
+    }
+
+    lines.push('# HELP llmgw_budget_cost_usd_used Estimated USD cost used today per key');
+    lines.push('# TYPE llmgw_budget_cost_usd_used gauge');
+    for (const [key, b] of entries) {
+      const cost = Math.round(b.costUsd * 1e6) / 1e6;
+      lines.push(`llmgw_budget_cost_usd_used{${labelsFor(key, nameLabel(key))}} ${cost}`);
+    }
+
+    return lines.join('\n') + '\n';
   }
 
   reset() {

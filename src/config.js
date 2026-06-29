@@ -144,4 +144,10 @@ export const config = {
     toFile: bool(process.env.LOG_TO_FILE, true),
     dir: process.env.LOG_DIR || 'logs',
   },
+
+  // Encryption-at-rest for the JSON stores (team.json, conversations.json).
+  // Unset = plaintext (dev/back-compat). Set a strong passphrase to encrypt.
+  encryption: {
+    key: process.env.DATA_ENCRYPTION_KEY || null,
+  },
 };
