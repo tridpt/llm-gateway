@@ -22,7 +22,37 @@ test('create generates a unique sk-team key and normalizes fields', () => {
   assert.equal(m.dailyRequests, 10);
   assert.equal(m.admin, false);
   assert.equal(m.disabled, false);
+  assert.equal(m.username, 'alice');
+  assert.ok(m.password);
   assert.ok(m.createdAt);
+  assert.equal('passwordHash' in m, false);
+  fs.rmSync(file, { force: true });
+});
+
+test('username/password login verifies without leaking password hashes', () => {
+  const { store, file } = freshStore();
+  const m = store.create({ name: 'Alice Smith', username: 'alice', password: 'secret-123' });
+
+  const loggedIn = store.verifyLogin('Alice', 'secret-123');
+  assert.equal(loggedIn.key, m.key);
+  assert.equal(loggedIn.username, 'alice');
+  assert.equal(store.verifyLogin('alice', 'wrong'), null);
+  assert.equal('passwordHash' in store.get(m.key), false);
+  assert.equal('passwordHash' in store.list()[0], false);
+
+  fs.rmSync(file, { force: true });
+});
+
+test('resetPassword rotates member login password', () => {
+  const { store, file } = freshStore();
+  const m = store.create({ name: 'Reset Me', password: 'old-password' });
+  const rotated = store.resetPassword(m.key);
+
+  assert.ok(rotated.password);
+  assert.notEqual(rotated.password, 'old-password');
+  assert.equal(store.verifyLogin(m.username, 'old-password'), null);
+  assert.equal(store.verifyLogin(m.username, rotated.password).key, m.key);
+
   fs.rmSync(file, { force: true });
 });
 

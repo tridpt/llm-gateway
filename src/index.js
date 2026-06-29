@@ -14,6 +14,7 @@ import { embeddingsRouter } from './routes/embeddings.js';
 import { modelsRouter } from './routes/models.js';
 import { anthropicRouter } from './routes/anthropic.js';
 import { adminRouter } from './routes/admin.js';
+import { authRouter } from './routes/auth.js';
 import { usageRouter } from './routes/usage.js';
 import { conversationsRouter } from './routes/conversations.js';
 import { resolveProviderChain } from './providers/index.js';
@@ -51,6 +52,9 @@ export function createApp() {
   // Self-hosted team chat UI (a "ChatGPT for your team" front end that talks
   // to this gateway: shared provider keys, per-user budgets).
   app.use('/chat', express.static(path.join(__dirname, '..', 'public', 'chat')));
+
+  // Browser login: username/password -> signed session token.
+  app.use('/v1', authRouter);
 
   // LLM API — authenticated, budget-checked, and rate limited.
   app.use('/v1', authenticate, budgetGuard, rateLimit, chatRouter);

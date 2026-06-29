@@ -3,41 +3,61 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Team Chat · LLM Gateway</title>
-  <link rel="stylesheet" href="style.css" />
+  <title>Team Chat - LLM Gateway</title>
+  <link rel="stylesheet" href="style.css?v=chat-actions3" />
 </head>
 <body>
-  <!-- Login gate -->
   <div id="login" class="login-overlay">
     <form id="loginForm" class="login-card" autocomplete="off">
-      <div class="login-logo">⚡</div>
+      <div class="login-logo">LLM</div>
       <h1>Team Chat</h1>
-      <p class="login-sub">Self-hosted chat on your shared LLM Gateway. Sign in with your personal gateway key — usage counts against your own daily budget.</p>
-      <label>Your name <span class="opt">(shown to you only)</span></label>
-      <input id="loginName" type="text" placeholder="e.g. Tri" />
-      <label>Gateway API key</label>
-      <input id="loginKey" type="password" placeholder="Bearer key, e.g. demo-key-123" required />
-      <label>Gateway URL <span class="opt">(leave blank for this server)</span></label>
-      <input id="loginBase" type="text" placeholder="http://localhost:8080" />
+      <p class="login-sub">Sign in with the username and password your admin gave you. The gateway keeps API keys server-side.</p>
+
+      <div class="login-tabs" role="tablist">
+        <button id="passwordMode" type="button" class="active">Password</button>
+        <button id="keyMode" type="button">API key</button>
+      </div>
+
+      <div id="passwordFields">
+        <label>Username</label>
+        <input id="loginUsername" type="text" placeholder="e.g. tri" autocomplete="username" />
+        <label>Password</label>
+        <input id="loginPassword" type="password" placeholder="Your team password" autocomplete="current-password" />
+      </div>
+
+      <div id="keyFields" class="hidden">
+        <label>Your name <span class="opt">(shown to you only)</span></label>
+        <input id="loginName" type="text" placeholder="e.g. Tri" />
+        <label>Gateway API key</label>
+        <input id="loginKey" type="password" placeholder="Bearer key, e.g. demo-key-123" />
+      </div>
+
+      <details class="advanced-login">
+        <summary>Gateway URL</summary>
+        <input id="loginBase" type="text" placeholder="http://localhost:8080" />
+      </details>
+
       <button type="submit">Sign in</button>
       <div id="loginError" class="login-error"></div>
     </form>
   </div>
 
-  <!-- App shell -->
   <div id="app" class="app hidden">
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-head">
         <button id="newChat" class="new-chat">+ New chat</button>
-        <button id="collapseBtn" class="icon-btn" title="Hide sidebar">«</button>
+        <button id="collapseBtn" class="icon-btn" title="Hide sidebar">&laquo;</button>
+      </div>
+      <div class="sidebar-search">
+        <input id="convSearch" type="search" placeholder="Search chats" />
       </div>
       <div id="convList" class="conv-list"></div>
       <div class="sidebar-foot">
-        <button id="adminBtn" class="admin-btn hidden">👥 Manage team</button>
+        <button id="adminBtn" class="admin-btn hidden">Manage team</button>
         <div class="budget" id="budget">
-          <div class="budget-row"><span>Requests today</span><span id="budReq">–</span></div>
+          <div class="budget-row"><span>Requests today</span><span id="budReq">-</span></div>
           <div class="bar"><div id="budReqBar" class="bar-fill"></div></div>
-          <div class="budget-row"><span>Cost today</span><span id="budCost">–</span></div>
+          <div class="budget-row"><span>Cost today</span><span id="budCost">-</span></div>
           <div class="bar"><div id="budCostBar" class="bar-fill cost"></div></div>
         </div>
         <div class="user-row">
@@ -46,23 +66,23 @@
             <div id="userName" class="user-name">User</div>
             <div class="user-key" id="userKey"></div>
           </div>
-          <button id="logout" class="icon-btn" title="Sign out">⏻</button>
+          <button id="logout" class="icon-btn" title="Sign out">Exit</button>
         </div>
       </div>
     </aside>
 
     <main class="main">
       <header class="topbar">
-        <button id="showSidebar" class="icon-btn hidden" title="Show sidebar">»</button>
+        <button id="showSidebar" class="icon-btn hidden" title="Show sidebar">&raquo;</button>
         <select id="modelSelect" class="model-select" title="Model"></select>
-        <button id="sysBtn" class="ghost-btn" title="System prompt">⚙ System</button>
+        <button id="sysBtn" class="ghost-btn" title="System prompt">System</button>
         <div class="spacer"></div>
         <span id="convTitle" class="conv-title-top"></span>
       </header>
 
       <div id="sysPanel" class="sys-panel hidden">
         <label>System prompt (sent at the top of every message in this chat)</label>
-        <textarea id="sysInput" rows="3" placeholder="You are a helpful assistant for our team…"></textarea>
+        <textarea id="sysInput" rows="3" placeholder="You are a helpful assistant for our team..."></textarea>
         <div class="sys-actions">
           <button id="sysSave" class="ghost-btn">Save</button>
           <button id="sysClose" class="ghost-btn">Close</button>
@@ -73,39 +93,40 @@
 
       <div class="composer">
         <div class="composer-inner">
-          <textarea id="input" rows="1" placeholder="Message… (Enter to send, Shift+Enter for newline)"></textarea>
-          <button id="send" class="send-btn" title="Send">➤</button>
-          <button id="stop" class="stop-btn hidden" title="Stop">■</button>
+          <textarea id="input" rows="1" placeholder="Message... (Enter to send, Shift+Enter for newline)"></textarea>
+          <button id="send" class="send-btn" title="Send">Send</button>
+          <button id="stop" class="stop-btn hidden" title="Stop">Stop</button>
         </div>
         <div class="composer-hint" id="hint"></div>
       </div>
     </main>
   </div>
 
-  <!-- Team admin modal -->
   <div id="adminModal" class="modal-overlay hidden">
     <div class="modal">
       <div class="modal-head">
         <h2>Team members</h2>
-        <button id="adminClose" class="icon-btn">✕</button>
+        <button id="adminClose" class="icon-btn">Close</button>
       </div>
       <div class="modal-body">
         <form id="addForm" class="add-form">
           <input id="mName" type="text" placeholder="Name" required />
-          <input id="mReq" type="number" min="0" placeholder="Req/day (∞)" />
-          <input id="mCost" type="number" min="0" step="0.01" placeholder="$/day (∞)" />
+          <input id="mUsername" type="text" placeholder="Username (auto)" />
+          <input id="mPassword" type="text" placeholder="Password (auto)" />
+          <input id="mReq" type="number" min="0" placeholder="Req/day (unlimited)" />
+          <input id="mCost" type="number" min="0" step="0.01" placeholder="$/day (unlimited)" />
           <label class="chk"><input id="mAdmin" type="checkbox" /> Admin</label>
           <button type="submit" class="ghost-btn">+ Add member</button>
         </form>
         <div id="newKeyBanner" class="new-key-banner hidden"></div>
         <table class="team-table">
-          <thead><tr><th>Name</th><th>Key</th><th>Today</th><th>Limits</th><th>Status</th><th></th></tr></thead>
+          <thead><tr><th>Name</th><th>Login</th><th>Today</th><th>Limits</th><th>Status</th><th></th></tr></thead>
           <tbody id="teamRows"></tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=chat-actions3"></script>
 </body>
 </html>

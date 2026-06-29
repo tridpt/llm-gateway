@@ -17,8 +17,10 @@ usageRouter.get('/me', (req, res) => {
   const usage = budgetManager.getUsage(key);
   res.json({
     key,
+    username: member?.username || null,
     name: member?.name || null,
     admin: Boolean(req.isAdmin),
+    authType: req.authType || null,
     usage: { requests: usage.requests, costUsd: usage.costUsd, date: usage.date },
     limits: budgetManager.getLimits(key),
   });

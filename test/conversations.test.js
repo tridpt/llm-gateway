@@ -66,6 +66,16 @@ test('list returns an owner\'s conversations newest first', () => {
   fs.rmSync(file, { force: true });
 });
 
+test('list keeps pinned conversations before newer unpinned conversations', () => {
+  const { store, file } = freshStore();
+  store.upsert('o', { id: 'old-pinned', title: 'Pinned', pinned: true, updated: 1 });
+  store.upsert('o', { id: 'new-normal', title: 'Normal', pinned: false, updated: 99 });
+  const list = store.list('o');
+  assert.equal(list[0].id, 'old-pinned');
+  assert.equal(list[0].pinned, true);
+  fs.rmSync(file, { force: true });
+});
+
 test('remove deletes a conversation', () => {
   const { store, file } = freshStore();
   store.upsert('o', { id: 'c1' });

@@ -73,12 +73,14 @@ adminRouter.get('/team', requireAdmin, (req, res) => {
 });
 
 adminRouter.post('/team', requireAdmin, (req, res) => {
-  const { name, dailyRequests, dailyCostUsd, admin } = req.body || {};
+  const { name, username, password, dailyRequests, dailyCostUsd, admin } = req.body || {};
   if (!name || !String(name).trim()) {
     return res.status(400).json({ error: { message: 'name is required.', type: 'invalid_request_error' } });
   }
   const member = team.create({
     name: String(name).trim(),
+    username,
+    password,
     dailyRequests: numOrNull(dailyRequests),
     dailyCostUsd: numOrNull(dailyCostUsd),
     admin: Boolean(admin),
@@ -88,14 +90,22 @@ adminRouter.post('/team', requireAdmin, (req, res) => {
 
 adminRouter.patch('/team/:key', requireAdmin, (req, res) => {
   const patch = {};
-  const { name, dailyRequests, dailyCostUsd, admin, disabled } = req.body || {};
+  const { name, username, password, dailyRequests, dailyCostUsd, admin, disabled } = req.body || {};
   if (name !== undefined) patch.name = String(name).trim();
+  if (username !== undefined) patch.username = String(username).trim();
+  if (password !== undefined) patch.password = String(password);
   if (dailyRequests !== undefined) patch.dailyRequests = numOrNull(dailyRequests);
   if (dailyCostUsd !== undefined) patch.dailyCostUsd = numOrNull(dailyCostUsd);
   if (admin !== undefined) patch.admin = Boolean(admin);
   if (disabled !== undefined) patch.disabled = Boolean(disabled);
 
   const member = team.update(req.params.key, patch);
+  if (!member) return res.status(404).json({ error: { message: 'Member not found.', type: 'not_found' } });
+  res.json({ member: withUsage(member) });
+});
+
+adminRouter.post('/team/:key/password/reset', requireAdmin, (req, res) => {
+  const member = team.resetPassword(req.params.key);
   if (!member) return res.status(404).json({ error: { message: 'Member not found.', type: 'not_found' } });
   res.json({ member: withUsage(member) });
 });

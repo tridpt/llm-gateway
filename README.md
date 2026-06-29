@@ -166,6 +166,12 @@ full pipeline (routing, fallback, cache, budget…), and translates the response
 
 ## Team chat (self-hosted ChatGPT)
 
+**Login update:** the chat UI now defaults to username/password login. Admins
+create members from the Team panel, copy an invite with URL + username +
+password, and users receive a signed session token from `POST /v1/login`.
+The old gateway-key login remains available under "API key" for bootstrap/admin
+operators and API clients.
+
 A ready-to-use chat UI ships at **`/chat`** — a "ChatGPT for your team" front end
 that runs entirely on top of the gateway. The provider API keys stay on the
 server (shared), while each team member signs in with their **own gateway key**,
@@ -199,6 +205,10 @@ which lists everyone), so the chat UI can show a member their budget without
 leaking other members' activity.
 
 ### Managing the team (no file editing, no restart)
+
+Admins can create username/password logins, copy an invite, reset a member's
+password, disable access, and still copy the underlying gateway key for advanced
+API-client use. The stable member key remains the internal budget bucket.
 
 Editing `budgets.json` by hand works, but the chat UI also ships a **team admin
 panel** for provisioning people at runtime. Sign in with an **admin** key and a
@@ -295,6 +305,7 @@ Because the gateway speaks the OpenAI request shape, the Anthropic adapter trans
 | POST | `/v1/chat/completions` | OpenAI-compatible chat completion (auth + rate limited) |
 | POST | `/v1/embeddings` | OpenAI-compatible embeddings for RAG / semantic search |
 | POST | `/v1/messages` | Anthropic-compatible Messages API (translated in & out) |
+| POST | `/v1/login` | Username/password team-chat login; returns a signed session token |
 | GET | `/v1/models` | OpenAI-compatible model catalogue (includes aliases) |
 | GET | `/v1/usage` | Your own daily budget usage + limits (self-service, per key) |
 | GET | `/v1/me` | Your identity, admin flag, usage + limits |
@@ -309,8 +320,9 @@ Because the gateway speaks the OpenAI request shape, the Anthropic adapter trans
 | POST | `/admin/metrics/reset` | Reset counters |
 | POST | `/admin/cache/clear` | Empty the cache |
 | GET | `/admin/team` | List team members + their usage (admin only) |
-| POST | `/admin/team` | Create a member, returns a generated key (admin only) |
-| PATCH | `/admin/team/:key` | Update name/limits/admin/disabled (admin only) |
+| POST | `/admin/team` | Create a member, returns generated username/password plus key (admin only) |
+| PATCH | `/admin/team/:key` | Update name/username/password/limits/admin/disabled (admin only) |
+| POST | `/admin/team/:key/password/reset` | Reset a member password and return the new one (admin only) |
 | DELETE | `/admin/team/:key` | Remove a member (admin only) |
 | GET | `/admin/pricing` | Current pricing table |
 | GET | `/health` | Liveness probe |

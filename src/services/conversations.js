@@ -8,7 +8,7 @@ import { loadJson, saveJson } from './secureFile.js';
  *
  * Conversations are owned by the caller's gateway key and grouped by owner:
  *
- *   { [ownerKey]: { [convId]: { id, title, system, model, messages, updated, created } } }
+ *   { [ownerKey]: { [convId]: { id, title, pinned, system, model, messages, updated, created } } }
  *
  * Persisted to conversations.json at the project root with an atomic write.
  * This keeps the chat history on the gateway, not just in one browser — the
@@ -46,10 +46,13 @@ export class ConversationStore {
     return this.data[owner];
   }
 
-  /** List an owner's conversations, newest first. */
+  /** List an owner's conversations, pinned first, then newest first. */
   list(owner) {
     const bucket = this.data[owner] || {};
-    return Object.values(bucket).sort((a, b) => (b.updated || 0) - (a.updated || 0));
+    return Object.values(bucket).sort((a, b) => {
+      if (Boolean(a.pinned) !== Boolean(b.pinned)) return a.pinned ? -1 : 1;
+      return (b.updated || 0) - (a.updated || 0);
+    });
   }
 
   get(owner, id) {
@@ -65,6 +68,7 @@ export class ConversationStore {
     const record = {
       id: conv.id,
       title: String(conv.title || 'New chat').slice(0, 200),
+      pinned: Boolean(conv.pinned),
       system: typeof conv.system === 'string' ? conv.system : '',
       model: conv.model || '',
       messages: Array.isArray(conv.messages)

@@ -2,8 +2,8 @@
 
 Base URL (local): `http://localhost:8080`
 
-All `/v1/*` endpoints require authentication. Send your gateway key as a bearer
-token:
+Most `/v1/*` endpoints require authentication. Send either a gateway key or a
+signed session token from `POST /v1/login` as a bearer token:
 
 ```
 Authorization: Bearer <GATEWAY_API_KEY>
@@ -20,6 +20,34 @@ caller is treated as `anonymous`.
   Anthropic-style endpoint.
 - Every chat/embedding response includes a `gateway` object with metadata such
   as `{ "cached": true }`.
+
+---
+
+## POST /v1/login
+
+Username/password login for the Team Chat UI. This endpoint is public; it
+returns a signed session token that can be used as the bearer token for the rest
+of the API. Budgeting and conversation ownership still resolve to the member's
+stable gateway key.
+
+```bash
+curl -X POST http://localhost:8080/v1/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"alice","password":"team-password"}'
+```
+
+```json
+{
+  "token": "gw-session-v1...",
+  "expiresAt": "2026-07-29T00:00:00.000Z",
+  "member": {
+    "key": "sk-team-...",
+    "username": "alice",
+    "name": "Alice",
+    "admin": false
+  }
+}
+```
 
 ---
 
@@ -169,8 +197,8 @@ routed models, and known/priced models.
 
 ## Admin & observability
 
-These are also authenticated (reuse gateway keys), except `/metrics` and
-`/health` which are open by convention.
+These are also authenticated (reuse gateway keys or session tokens), except
+`/metrics` and `/health` which are open by convention.
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -182,13 +210,18 @@ These are also authenticated (reuse gateway keys), except `/metrics` and
 | GET | `/admin/pricing` | Pricing table (USD per 1M tokens). |
 | GET | `/admin/routes` | Active routing config. |
 | GET | `/admin/usage` | Per-key budget usage. |
+| GET | `/admin/team` | List team members and their usage. |
+| POST | `/admin/team` | Create a member; returns username/password plus the underlying key. |
+| PATCH | `/admin/team/:key` | Update name, username, password, limits, admin flag, or disabled flag. |
+| POST | `/admin/team/:key/password/reset` | Reset a member password and return the new one. |
+| DELETE | `/admin/team/:key` | Remove a member and revoke access. |
 
 ### Error codes
 
 | Status | Meaning |
 |--------|---------|
 | 400 | Invalid request body. |
-| 401 | Missing/invalid gateway API key. |
+| 401 | Missing/invalid gateway credentials. |
 | 429 | Rate limit or budget exceeded (`type`: `rate_limit_error` / `budget_exceeded`). |
 | 502 | All providers/targets failed (includes `attempts`). |
 | 503 | No usable providers configured. |

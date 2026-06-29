@@ -44,6 +44,8 @@ test('admin can create a member who can authenticate and chat', async () => {
   assert.equal(create.status, 201);
   const { member } = await create.json();
   assert.match(member.key, /^sk-team-/);
+  assert.equal(member.username, 'alice');
+  assert.ok(member.password);
 
   // The new member sees themselves as a non-admin with their server name + limit.
   const me = await (await fetch(`${base}/v1/me`, { headers: bearer(member.key) })).json();
@@ -58,6 +60,66 @@ test('admin can create a member who can authenticate and chat', async () => {
     body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: 'hi' }] }),
   });
   assert.equal(chat.status, 200);
+  server.close();
+});
+
+test('member can sign in with username/password and use the session token', async () => {
+  clearTeam();
+  const { server, base } = await startServer();
+
+  const create = await fetch(`${base}/admin/team`, {
+    method: 'POST',
+    headers: { ...ADMIN, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'Login User', username: 'login.user', password: 'pass-12345' }),
+  });
+  assert.equal(create.status, 201);
+  const { member } = await create.json();
+
+  const login = await fetch(`${base}/v1/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'login.user', password: 'pass-12345' }),
+  });
+  assert.equal(login.status, 200);
+  const session = await login.json();
+  assert.match(session.token, /^gw-session-v1\./);
+  assert.equal(session.member.key, member.key);
+
+  const me = await (await fetch(`${base}/v1/me`, { headers: bearer(session.token) })).json();
+  assert.equal(me.key, member.key);
+  assert.equal(me.username, 'login.user');
+  assert.equal(me.authType, 'session');
+
+  const chat = await fetch(`${base}/v1/chat/completions`, {
+    method: 'POST',
+    headers: { ...bearer(session.token), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: 'hi' }] }),
+  });
+  assert.equal(chat.status, 200);
+
+  server.close();
+});
+
+test('disabled members cannot use existing session tokens', async () => {
+  clearTeam();
+  const m = team.create({ name: 'Session User', username: 'session.user', password: 'pass-12345' });
+  const { server, base } = await startServer();
+
+  const login = await fetch(`${base}/v1/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: m.username, password: 'pass-12345' }),
+  });
+  const session = await login.json();
+
+  await fetch(`${base}/admin/team/${encodeURIComponent(m.key)}`, {
+    method: 'PATCH',
+    headers: { ...ADMIN, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ disabled: true }),
+  });
+
+  const after = await fetch(`${base}/v1/me`, { headers: bearer(session.token) });
+  assert.equal(after.status, 401);
   server.close();
 });
 
