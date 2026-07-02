@@ -88,3 +88,59 @@ test('metrics endpoint reflects activity', async () => {
   assert.ok(json.totals.requests >= 1);
   server.close();
 });
+
+test('streaming with include_usage appends a final usage chunk', async () => {
+  const { server, base } = await startServer();
+  const res = await fetch(`${base}/v1/chat/completions`, {
+    method: 'POST',
+    headers: AUTH,
+    body: JSON.stringify({
+      model: 'mock-gpt',
+      stream: true,
+      stream_options: { include_usage: true },
+      messages: [{ role: 'user', content: 'usage please' }],
+    }),
+  });
+  assert.equal(res.status, 200);
+  const text = await res.text();
+
+  // Collect every SSE data payload.
+  const payloads = text
+    .split('\n\n')
+    .flatMap((frame) => frame.split('\n'))
+    .map((l) => l.trim())
+    .filter((l) => l.startsWith('data:'))
+    .map((l) => l.slice(5).trim())
+    .filter((p) => p && p !== '[DONE]')
+    .map((p) => JSON.parse(p));
+
+  const withUsage = payloads.find((p) => p.usage);
+  assert.ok(withUsage, 'a chunk carrying usage should be present');
+  assert.ok(withUsage.usage.total_tokens > 0);
+  assert.deepEqual(withUsage.choices, []);
+  server.close();
+});
+
+test('streaming without include_usage omits the usage chunk', async () => {
+  const { server, base } = await startServer();
+  const res = await fetch(`${base}/v1/chat/completions`, {
+    method: 'POST',
+    headers: AUTH,
+    body: JSON.stringify({
+      model: 'mock-gpt',
+      stream: true,
+      messages: [{ role: 'user', content: 'no usage' }],
+    }),
+  });
+  const text = await res.text();
+  const payloads = text
+    .split('\n\n')
+    .flatMap((frame) => frame.split('\n'))
+    .map((l) => l.trim())
+    .filter((l) => l.startsWith('data:'))
+    .map((l) => l.slice(5).trim())
+    .filter((p) => p && p !== '[DONE]')
+    .map((p) => JSON.parse(p));
+  assert.ok(!payloads.some((p) => p.usage), 'no usage chunk expected');
+  server.close();
+});

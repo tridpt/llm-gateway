@@ -86,7 +86,7 @@ chatRouter.post('/chat/completions', async (req, res) => {
         ts: new Date().toISOString(),
       });
 
-      if (wantsStream) return streamFromText(res, requestId, hit, true);
+      if (wantsStream) return streamFromText(res, requestId, hit, true, Boolean(body.stream_options?.include_usage));
       return res.json(
         buildOpenAIResponse({
           id: requestId,
@@ -244,6 +244,23 @@ async function handleStreaming(req, res, { requestId, body, cacheKey, startedAt,
   }
 
   sendChunk({}, finishReason);
+  // Optionally emit a final usage-only chunk (OpenAI `stream_options.include_usage`).
+  if (body.stream_options?.include_usage) {
+    res.write(
+      `data: ${JSON.stringify({
+        id: requestId,
+        object: 'chat.completion.chunk',
+        created: Math.floor(Date.now() / 1000),
+        model: body.model,
+        choices: [],
+        usage: {
+          prompt_tokens: usage.inputTokens,
+          completion_tokens: usage.outputTokens,
+          total_tokens: usage.inputTokens + usage.outputTokens,
+        },
+      })}\n\n`
+    );
+  }
   res.write('data: [DONE]\n\n');
   res.end();
 
@@ -294,7 +311,7 @@ async function handleStreaming(req, res, { requestId, body, cacheKey, startedAt,
  * Replay a cached completion as an SSE stream (word by word) so streaming
  * clients still get a streaming-shaped response on a cache hit.
  */
-function streamFromText(res, requestId, hit, cached) {
+function streamFromText(res, requestId, hit, cached, includeUsage = false) {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -317,6 +334,23 @@ function streamFromText(res, requestId, hit, cached) {
     send({ content: word + ' ' });
   }
   send({}, hit.finishReason || 'stop');
+  if (includeUsage) {
+    res.write(
+      `data: ${JSON.stringify({
+        id: requestId,
+        object: 'chat.completion.chunk',
+        created: Math.floor(Date.now() / 1000),
+        model: hit.model,
+        gateway: { cached },
+        choices: [],
+        usage: {
+          prompt_tokens: hit.usage.inputTokens,
+          completion_tokens: hit.usage.outputTokens,
+          total_tokens: hit.usage.inputTokens + hit.usage.outputTokens,
+        },
+      })}\n\n`
+    );
+  }
   res.write('data: [DONE]\n\n');
   res.end();
 }
