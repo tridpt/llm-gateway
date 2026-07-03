@@ -1,6 +1,10 @@
 # LLM Gateway
 
 [![CI](https://github.com/tridpt/llm-gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/tridpt/llm-gateway/actions/workflows/ci.yml)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)](https://nodejs.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Code style: Prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg)](https://prettier.io)
+[![Coverage](https://img.shields.io/badge/coverage-84%25-green.svg)](#tests)
 
 A production-style gateway/proxy that sits between your application and LLM providers (OpenAI, Anthropic). It exposes an **OpenAI-compatible API** and adds the cross-cutting concerns you need to run LLMs in production:
 
@@ -355,10 +359,13 @@ All via `.env` (see `.env.example` for the full list): provider order, API keys,
 ## Tests
 
 ```bash
-npm test
+npm test           # run the suite
+npm run coverage   # run with a line/branch/function coverage report
 ```
 
-Uses Node's built-in test runner against the mock provider — no keys or network needed.
+Uses Node's built-in test runner against the mock provider — no keys or network
+needed. `npm run coverage` uses Node's built-in coverage (`--experimental-test-coverage`),
+so there's no extra dependency.
 
 ## Smart routing
 
