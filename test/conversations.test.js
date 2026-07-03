@@ -63,10 +63,13 @@ test('upsert preserves created and bumps updated', async () => {
   fs.rmSync(file, { force: true });
 });
 
-test("list returns an owner's conversations newest first", () => {
+test("list returns an owner's conversations newest first", async () => {
   const { store, file } = freshStore();
-  store.upsert('o', { id: 'a', title: 'A', updated: 1 });
-  store.upsert('o', { id: 'b', title: 'B', updated: 2 });
+  // upsert stamps `updated` with the server clock (client-supplied values are
+  // ignored), so wait between writes to guarantee a distinct, later timestamp.
+  store.upsert('o', { id: 'a', title: 'A' });
+  await new Promise((r) => setTimeout(r, 5));
+  store.upsert('o', { id: 'b', title: 'B' });
   const list = store.list('o');
   assert.equal(list.length, 2);
   assert.equal(list[0].id, 'b'); // most recently updated first
