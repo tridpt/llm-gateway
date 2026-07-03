@@ -25,6 +25,17 @@ A production-style gateway/proxy that sits between your application and LLM prov
 
 Built with Node.js (ESM) and Express. Zero AI SDK dependencies — providers are thin `fetch` adapters, which keeps the data flow easy to read and reason about.
 
+## Screenshots
+
+<!--
+  Add screenshots to docs/images/ (see docs/images/README.md), then uncomment
+  the block below. Two images are expected: dashboard.png and chat.png.
+
+| Observability dashboard | Team chat UI |
+| ----------------------- | ------------ |
+| ![Live metrics dashboard](docs/images/dashboard.png) | ![Self-hosted team chat](docs/images/chat.png) |
+-->
+
 ## Documentation
 
 - [API Reference](docs/API.md) — every endpoint, request/response shapes, errors
