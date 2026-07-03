@@ -27,14 +27,9 @@ Built with Node.js (ESM) and Express. Zero AI SDK dependencies — providers are
 
 ## Screenshots
 
-<!--
-  Add screenshots to docs/images/ (see docs/images/README.md), then uncomment
-  the block below. Two images are expected: dashboard.png and chat.png.
-
-| Observability dashboard | Team chat UI |
-| ----------------------- | ------------ |
+| Observability dashboard                              | Team chat UI                                   |
+| ---------------------------------------------------- | ---------------------------------------------- |
 | ![Live metrics dashboard](docs/images/dashboard.png) | ![Self-hosted team chat](docs/images/chat.png) |
--->
 
 ## Documentation
 
