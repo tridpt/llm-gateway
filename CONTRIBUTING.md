@@ -53,6 +53,11 @@ no cost. Tests also run fully offline against the mock provider.
   member credentials and chat history.
 - Update the docs (`README.md`, `docs/`, `TAI_LIEU.md`) when behavior changes.
 
+## Code of Conduct
+
+By participating in this project you agree to abide by the
+[Code of Conduct](CODE_OF_CONDUCT.md).
+
 ## Reporting security issues
 
 Please do not open a public issue for security problems. See [`SECURITY.md`](SECURITY.md).
