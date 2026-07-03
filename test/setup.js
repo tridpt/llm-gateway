@@ -17,5 +17,9 @@ process.env.LOG_TO_FILE = 'false';
 process.env.TEAM_FILE = path.join(os.tmpdir(), 'llmgw-test-team.json');
 process.env.CONVERSATIONS_FILE = path.join(os.tmpdir(), 'llmgw-test-conversations.json');
 for (const f of [process.env.TEAM_FILE, process.env.CONVERSATIONS_FILE]) {
-  try { fs.rmSync(f, { force: true }); } catch { /* ignore */ }
+  try {
+    fs.rmSync(f, { force: true });
+  } catch {
+    /* ignore */
+  }
 }

@@ -74,8 +74,7 @@ export function estimateMessagesTokens(messages = []) {
  */
 export function computeCost(model, inputTokens, outputTokens) {
   const p = priceFor(model);
-  const cost =
-    (inputTokens / 1_000_000) * p.input + (outputTokens / 1_000_000) * p.output;
+  const cost = (inputTokens / 1_000_000) * p.input + (outputTokens / 1_000_000) * p.output;
   // Round to 6 decimals to avoid floating noise.
   return Math.round(cost * 1e6) / 1e6;
 }

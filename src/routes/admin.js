@@ -75,7 +75,9 @@ adminRouter.get('/team', requireAdmin, (req, res) => {
 adminRouter.post('/team', requireAdmin, (req, res) => {
   const { name, username, password, dailyRequests, dailyCostUsd, admin } = req.body || {};
   if (!name || !String(name).trim()) {
-    return res.status(400).json({ error: { message: 'name is required.', type: 'invalid_request_error' } });
+    return res
+      .status(400)
+      .json({ error: { message: 'name is required.', type: 'invalid_request_error' } });
   }
   const member = team.create({
     name: String(name).trim(),
@@ -100,19 +102,22 @@ adminRouter.patch('/team/:key', requireAdmin, (req, res) => {
   if (disabled !== undefined) patch.disabled = Boolean(disabled);
 
   const member = team.update(req.params.key, patch);
-  if (!member) return res.status(404).json({ error: { message: 'Member not found.', type: 'not_found' } });
+  if (!member)
+    return res.status(404).json({ error: { message: 'Member not found.', type: 'not_found' } });
   res.json({ member: withUsage(member) });
 });
 
 adminRouter.post('/team/:key/password/reset', requireAdmin, (req, res) => {
   const member = team.resetPassword(req.params.key);
-  if (!member) return res.status(404).json({ error: { message: 'Member not found.', type: 'not_found' } });
+  if (!member)
+    return res.status(404).json({ error: { message: 'Member not found.', type: 'not_found' } });
   res.json({ member: withUsage(member) });
 });
 
 adminRouter.delete('/team/:key', requireAdmin, (req, res) => {
   const removed = team.remove(req.params.key);
-  if (!removed) return res.status(404).json({ error: { message: 'Member not found.', type: 'not_found' } });
+  if (!removed)
+    return res.status(404).json({ error: { message: 'Member not found.', type: 'not_found' } });
   res.json({ ok: true });
 });
 

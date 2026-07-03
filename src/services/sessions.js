@@ -6,9 +6,7 @@ const DEFAULT_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
 
 function sessionSecret() {
   return (
-    config.encryption.key ||
-    config.gatewayApiKeys.join('|') ||
-    'llm-gateway-dev-session-secret'
+    config.encryption.key || config.gatewayApiKeys.join('|') || 'llm-gateway-dev-session-secret'
   );
 }
 
@@ -17,10 +15,7 @@ function b64url(input) {
 }
 
 function sign(payloadB64) {
-  return crypto
-    .createHmac('sha256', sessionSecret())
-    .update(payloadB64)
-    .digest('base64url');
+  return crypto.createHmac('sha256', sessionSecret()).update(payloadB64).digest('base64url');
 }
 
 function safeEqual(a, b) {

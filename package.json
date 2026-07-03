@@ -7,7 +7,11 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "test": "node --import ./test/setup.js --test"
+    "test": "node --import ./test/setup.js --test",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "keywords": [
     "llm",
@@ -18,8 +22,26 @@
     "observability",
     "ai-engineering"
   ],
+  "author": "tridpt",
   "license": "MIT",
+  "homepage": "https://github.com/tridpt/llm-gateway#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tridpt/llm-gateway.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tridpt/llm-gateway/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.13.0",
+    "eslint": "^9.13.0",
+    "globals": "^15.11.0",
+    "prettier": "^3.3.3"
   }
 }

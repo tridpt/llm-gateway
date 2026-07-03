@@ -52,9 +52,7 @@ export function resolveProviderChain(capability) {
 export async function withFallback(run, { requestId, capability } = {}) {
   const chain = resolveProviderChain(capability);
   if (chain.length === 0) {
-    throw new Error(
-      'No usable providers configured. Check PROVIDER_ORDER and provider API keys.'
-    );
+    throw new Error('No usable providers configured. Check PROVIDER_ORDER and provider API keys.');
   }
 
   const attempts = [];
@@ -78,11 +76,8 @@ export async function withFallback(run, { requestId, capability } = {}) {
 
     try {
       const result = await withRetry(
-        () =>
-          withTimeout(config.reliability.timeoutMs, (signal) =>
-            run(provider, signal)
-          ),
-        { requestId, provider: provider.name }
+        () => withTimeout(config.reliability.timeoutMs, (signal) => run(provider, signal)),
+        { requestId, provider: provider.name },
       );
 
       circuitBreaker.recordSuccess(provider.name);
@@ -104,9 +99,7 @@ export async function withFallback(run, { requestId, capability } = {}) {
     }
   }
 
-  const error = new Error(
-    `All providers failed. Last error: ${lastError?.message || 'unknown'}`
-  );
+  const error = new Error(`All providers failed. Last error: ${lastError?.message || 'unknown'}`);
   error.attempts = attempts;
   throw error;
 }
@@ -152,9 +145,9 @@ export async function executeAcrossTargets(targets, run, { requestId } = {}) {
       const result = await withRetry(
         () =>
           withTimeout(config.reliability.timeoutMs, (signal) =>
-            run(provider, target.model, signal)
+            run(provider, target.model, signal),
           ),
-        { requestId, provider: target.provider }
+        { requestId, provider: target.provider },
       );
 
       latencyTracker.record(target.provider, target.model, Date.now() - startedAt);
@@ -180,7 +173,7 @@ export async function executeAcrossTargets(targets, run, { requestId } = {}) {
   }
 
   const error = new Error(
-    `All route targets failed. Last error: ${lastError?.message || 'unknown'}`
+    `All route targets failed. Last error: ${lastError?.message || 'unknown'}`,
   );
   error.attempts = attempts;
   throw error;

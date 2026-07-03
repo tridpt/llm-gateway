@@ -5,7 +5,11 @@ import { cache } from '../services/cache.js';
 import { metrics } from '../services/metrics.js';
 import { logger } from '../services/logger.js';
 import { computeCost } from '../services/cost.js';
-import { resolveProviderChain, executeAcrossTargets, openStreamAcrossTargets } from '../providers/index.js';
+import {
+  resolveProviderChain,
+  executeAcrossTargets,
+  openStreamAcrossTargets,
+} from '../providers/index.js';
 import { router } from '../routing/router.js';
 import { budgetManager } from '../services/budget.js';
 import { applyTokenSaver } from '../services/tokenSaver.js';
@@ -46,7 +50,7 @@ function anthropicToInternal(body) {
 }
 
 const mapStopReason = (finish) =>
-  ({ stop: 'end_turn', length: 'max_tokens', tool_calls: 'tool_use' }[finish] || 'end_turn');
+  ({ stop: 'end_turn', length: 'max_tokens', tool_calls: 'tool_use' })[finish] || 'end_turn';
 
 /** Internal completion result → Anthropic Messages response. */
 function internalToAnthropic(id, result) {
@@ -75,7 +79,10 @@ anthropicRouter.post('/messages', async (req, res) => {
   if (!body.model || !Array.isArray(body.messages) || body.messages.length === 0) {
     return res.status(400).json({
       type: 'error',
-      error: { type: 'invalid_request_error', message: 'Request must include "model" and a non-empty "messages" array.' },
+      error: {
+        type: 'invalid_request_error',
+        message: 'Request must include "model" and a non-empty "messages" array.',
+      },
     });
   }
 
@@ -100,9 +107,16 @@ anthropicRouter.post('/messages', async (req, res) => {
       const latencyMs = Date.now() - startedAt;
       logger.info('Cache hit (anthropic)', { requestId, model: internal.model, latencyMs });
       metrics.recordRequest({
-        requestId, provider: hit.provider, model: hit.model, cacheHit: true,
-        inputTokens: hit.usage.inputTokens, outputTokens: hit.usage.outputTokens,
-        costUsd: 0, latencyMs, stream: wantsStream, ts: new Date().toISOString(),
+        requestId,
+        provider: hit.provider,
+        model: hit.model,
+        cacheHit: true,
+        inputTokens: hit.usage.inputTokens,
+        outputTokens: hit.usage.outputTokens,
+        costUsd: 0,
+        latencyMs,
+        stream: wantsStream,
+        ts: new Date().toISOString(),
       });
       if (wantsStream) return replayAnthropicStream(res, requestId, hit);
       return res.json(internalToAnthropic(requestId, hit));
@@ -110,21 +124,42 @@ anthropicRouter.post('/messages', async (req, res) => {
   }
 
   if (resolveProviderChain().length === 0) {
-    return res.status(503).json({ type: 'error', error: { type: 'overloaded_error', message: 'No usable providers configured.' } });
+    return res.status(503).json({
+      type: 'error',
+      error: { type: 'overloaded_error', message: 'No usable providers configured.' },
+    });
   }
 
   try {
     if (wantsStream) {
-      await handleStreaming(res, { requestId, internal, body, cacheKey, startedAt, budgetKey: req.budgetKey });
+      await handleStreaming(res, {
+        requestId,
+        internal,
+        body,
+        cacheKey,
+        startedAt,
+        budgetKey: req.budgetKey,
+      });
     } else {
-      await handleNonStreaming(res, { requestId, internal, cacheKey, startedAt, budgetKey: req.budgetKey });
+      await handleNonStreaming(res, {
+        requestId,
+        internal,
+        cacheKey,
+        startedAt,
+        budgetKey: req.budgetKey,
+      });
     }
   } catch (err) {
     const latencyMs = Date.now() - startedAt;
     logger.error('Anthropic request failed', { requestId, error: err.message, latencyMs });
     metrics.recordRequest({
-      requestId, model: internal.model, cacheHit: false, error: true,
-      latencyMs, stream: wantsStream, ts: new Date().toISOString(),
+      requestId,
+      model: internal.model,
+      cacheHit: false,
+      error: true,
+      latencyMs,
+      stream: wantsStream,
+      ts: new Date().toISOString(),
     });
     if (!res.headersSent) {
       res.status(502).json({ type: 'error', error: { type: 'api_error', message: err.message } });
@@ -141,7 +176,7 @@ async function handleNonStreaming(res, { requestId, internal, cacheKey, startedA
   const { result, provider, model, tier, usedFallback } = await executeAcrossTargets(
     targets,
     (p, m, signal) => p.chatCompletion({ body: internal, model: m, signal }),
-    { requestId }
+    { requestId },
   );
 
   const costUsd = computeCost(result.model, result.usage.inputTokens, result.usage.outputTokens);
@@ -150,11 +185,28 @@ async function handleNonStreaming(res, { requestId, internal, cacheKey, startedA
   if (budgetKey) budgetManager.addCost(budgetKey, costUsd);
   if (config.cache.enabled) cache.set(cacheKey, { ...result, provider });
 
-  logger.info('Anthropic completion served', { requestId, provider, model, tier, usedFallback, costUsd, latencyMs });
+  logger.info('Anthropic completion served', {
+    requestId,
+    provider,
+    model,
+    tier,
+    usedFallback,
+    costUsd,
+    latencyMs,
+  });
   metrics.recordRequest({
-    requestId, provider, model: result.model, tier, cacheHit: false, usedFallback,
-    inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens,
-    costUsd, latencyMs, stream: false, ts: new Date().toISOString(),
+    requestId,
+    provider,
+    model: result.model,
+    tier,
+    cacheHit: false,
+    usedFallback,
+    inputTokens: result.usage.inputTokens,
+    outputTokens: result.usage.outputTokens,
+    costUsd,
+    latencyMs,
+    stream: false,
+    ts: new Date().toISOString(),
   });
 
   res.json(internalToAnthropic(requestId, result));
@@ -178,12 +230,21 @@ function startEvents(res, requestId, model, inputTokens) {
   emit(res, 'message_start', {
     type: 'message_start',
     message: {
-      id: `msg_${requestId}`, type: 'message', role: 'assistant', model,
-      content: [], stop_reason: null, stop_sequence: null,
+      id: `msg_${requestId}`,
+      type: 'message',
+      role: 'assistant',
+      model,
+      content: [],
+      stop_reason: null,
+      stop_sequence: null,
       usage: { input_tokens: inputTokens, output_tokens: 0 },
     },
   });
-  emit(res, 'content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } });
+  emit(res, 'content_block_start', {
+    type: 'content_block_start',
+    index: 0,
+    content_block: { type: 'text', text: '' },
+  });
 }
 
 function stopEvents(res, finishReason, outputTokens) {
@@ -201,11 +262,12 @@ async function handleStreaming(res, { requestId, internal, cacheKey, startedAt, 
   const availableProviders = resolveProviderChain().map((p) => p.name);
   const targets = router.resolveTargets(internal.model, availableProviders);
 
-  const { iterator, firstChunk, provider, model, tier, usedFallback } = await openStreamAcrossTargets(
-    targets,
-    (p, m, signal) => p.streamCompletion({ body: internal, model: m, signal }),
-    { requestId }
-  );
+  const { iterator, firstChunk, provider, model, tier, usedFallback } =
+    await openStreamAcrossTargets(
+      targets,
+      (p, m, signal) => p.streamCompletion({ body: internal, model: m, signal }),
+      { requestId },
+    );
 
   sseHeaders(res);
   startEvents(res, requestId, model, estimateInput(internal));
@@ -220,7 +282,8 @@ async function handleStreaming(res, { requestId, internal, cacheKey, startedAt, 
     if (value.type === 'delta') {
       fullText += value.text;
       emit(res, 'content_block_delta', {
-        type: 'content_block_delta', index: 0,
+        type: 'content_block_delta',
+        index: 0,
         delta: { type: 'text_delta', text: value.text },
       });
     } else if (value.type === 'done') {
@@ -239,9 +302,18 @@ async function handleStreaming(res, { requestId, internal, cacheKey, startedAt, 
   }
 
   metrics.recordRequest({
-    requestId, provider, model, tier, cacheHit: false, usedFallback,
-    inputTokens: usage.inputTokens, outputTokens: usage.outputTokens,
-    costUsd, latencyMs: Date.now() - startedAt, stream: true, ts: new Date().toISOString(),
+    requestId,
+    provider,
+    model,
+    tier,
+    cacheHit: false,
+    usedFallback,
+    inputTokens: usage.inputTokens,
+    outputTokens: usage.outputTokens,
+    costUsd,
+    latencyMs: Date.now() - startedAt,
+    stream: true,
+    ts: new Date().toISOString(),
   });
 }
 
@@ -250,7 +322,8 @@ function replayAnthropicStream(res, requestId, hit) {
   startEvents(res, requestId, hit.model, hit.usage.inputTokens);
   for (const word of hit.content.split(' ')) {
     emit(res, 'content_block_delta', {
-      type: 'content_block_delta', index: 0,
+      type: 'content_block_delta',
+      index: 0,
       delta: { type: 'text_delta', text: word + ' ' },
     });
   }
@@ -259,8 +332,5 @@ function replayAnthropicStream(res, requestId, hit) {
 
 function estimateInput(internal) {
   // Cheap estimate for the message_start event (real usage arrives at the end).
-  return internal.messages.reduce(
-    (s, m) => s + Math.ceil(String(m.content).length / 4) + 4,
-    0
-  );
+  return internal.messages.reduce((s, m) => s + Math.ceil(String(m.content).length / 4) + 4, 0);
 }

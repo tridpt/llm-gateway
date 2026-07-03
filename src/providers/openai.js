@@ -157,17 +157,14 @@ export const openaiProvider = {
     pool.markSuccess(key);
 
     const data = await res.json();
-    const vectors = (data.data || [])
-      .sort((a, b) => a.index - b.index)
-      .map((d) => d.embedding);
+    const vectors = (data.data || []).sort((a, b) => a.index - b.index).map((d) => d.embedding);
     const inputs = Array.isArray(input) ? input : [input];
     return {
       model: data.model || model,
       vectors,
       usage: {
         inputTokens:
-          data.usage?.prompt_tokens ??
-          inputs.reduce((s, t) => s + estimateTokens(String(t)), 0),
+          data.usage?.prompt_tokens ?? inputs.reduce((s, t) => s + estimateTokens(String(t)), 0),
       },
     };
   },

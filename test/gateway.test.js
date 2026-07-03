@@ -40,7 +40,10 @@ test('returns an OpenAI-shaped completion via the mock provider', async () => {
   const res = await fetch(`${base}/v1/chat/completions`, {
     method: 'POST',
     headers: AUTH,
-    body: JSON.stringify({ model: 'mock-gpt', messages: [{ role: 'user', content: 'hello world' }] }),
+    body: JSON.stringify({
+      model: 'mock-gpt',
+      messages: [{ role: 'user', content: 'hello world' }],
+    }),
   });
   const json = await res.json();
   assert.equal(res.status, 200);
@@ -58,7 +61,11 @@ test('second identical request is served from cache', async () => {
   });
 
   await fetch(`${base}/v1/chat/completions`, { method: 'POST', headers: AUTH, body: payload });
-  const res2 = await fetch(`${base}/v1/chat/completions`, { method: 'POST', headers: AUTH, body: payload });
+  const res2 = await fetch(`${base}/v1/chat/completions`, {
+    method: 'POST',
+    headers: AUTH,
+    body: payload,
+  });
   const json2 = await res2.json();
 
   assert.equal(json2.gateway.cached, true);
@@ -81,7 +88,10 @@ test('metrics endpoint reflects activity', async () => {
   await fetch(`${base}/v1/chat/completions`, {
     method: 'POST',
     headers: AUTH,
-    body: JSON.stringify({ model: 'mock-gpt', messages: [{ role: 'user', content: 'metrics test' }] }),
+    body: JSON.stringify({
+      model: 'mock-gpt',
+      messages: [{ role: 'user', content: 'metrics test' }],
+    }),
   });
   const res = await fetch(`${base}/admin/metrics`, { headers: AUTH });
   const json = await res.json();

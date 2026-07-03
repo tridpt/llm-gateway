@@ -6,14 +6,21 @@ import path from 'node:path';
 import { ConversationStore } from '../src/services/conversations.js';
 
 function freshStore(opts = {}) {
-  const file = path.join(os.tmpdir(), `llmgw-conv-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+  const file = path.join(
+    os.tmpdir(),
+    `llmgw-conv-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
+  );
   fs.rmSync(file, { force: true });
   return { store: new ConversationStore({ file, ...opts }), file };
 }
 
 test('upsert stores a conversation scoped to its owner', () => {
   const { store, file } = freshStore();
-  store.upsert('owner-a', { id: 'c1', title: 'Hi', messages: [{ role: 'user', content: 'hello' }] });
+  store.upsert('owner-a', {
+    id: 'c1',
+    title: 'Hi',
+    messages: [{ role: 'user', content: 'hello' }],
+  });
   const got = store.get('owner-a', 'c1');
   assert.equal(got.title, 'Hi');
   assert.equal(got.messages.length, 1);
@@ -56,7 +63,7 @@ test('upsert preserves created and bumps updated', async () => {
   fs.rmSync(file, { force: true });
 });
 
-test('list returns an owner\'s conversations newest first', () => {
+test("list returns an owner's conversations newest first", () => {
   const { store, file } = freshStore();
   store.upsert('o', { id: 'a', title: 'A', updated: 1 });
   store.upsert('o', { id: 'b', title: 'B', updated: 2 });
@@ -90,7 +97,10 @@ test('enforces a per-owner cap, dropping the oldest', () => {
   store.upsert('o', { id: 'a', updated: 1 });
   store.upsert('o', { id: 'b', updated: 2 });
   store.upsert('o', { id: 'c', updated: 3 });
-  const ids = store.list('o').map((c) => c.id).sort();
+  const ids = store
+    .list('o')
+    .map((c) => c.id)
+    .sort();
   assert.equal(ids.length, 2);
   assert.equal(ids.includes('a'), false); // oldest dropped
   fs.rmSync(file, { force: true });

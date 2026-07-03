@@ -28,23 +28,23 @@ client ──► /v1/chat/completions | /v1/messages | /v1/embeddings
 
 ## Module map
 
-| Concern | Module |
-|---------|--------|
-| Server wiring, middleware order | `src/index.js` |
-| Env + JSON config loading | `src/config.js` |
-| Provider adapters | `src/providers/{mock,openai,anthropic,gemini}.js` |
-| Target execution + fallback | `src/providers/index.js` |
-| Routing (alias/tier/LB/latency) | `src/routing/router.js` |
-| Latency tracking (EWMA) | `src/services/latency.js` |
-| API key rotation | `src/services/keypool.js` |
-| Reliability (timeout/retry/circuit) | `src/services/reliability.js` |
-| Cache (TTL + LRU) | `src/services/cache.js` |
-| Cost & token estimation | `src/services/cost.js` |
-| Budgets / quotas | `src/services/budget.js` |
-| Token saver | `src/services/tokenSaver.js` |
-| Metrics | `src/services/metrics.js` |
-| Structured logging | `src/services/logger.js` |
-| Routes | `src/routes/{chat,embeddings,anthropic,models,admin}.js` |
+| Concern                             | Module                                                   |
+| ----------------------------------- | -------------------------------------------------------- |
+| Server wiring, middleware order     | `src/index.js`                                           |
+| Env + JSON config loading           | `src/config.js`                                          |
+| Provider adapters                   | `src/providers/{mock,openai,anthropic,gemini}.js`        |
+| Target execution + fallback         | `src/providers/index.js`                                 |
+| Routing (alias/tier/LB/latency)     | `src/routing/router.js`                                  |
+| Latency tracking (EWMA)             | `src/services/latency.js`                                |
+| API key rotation                    | `src/services/keypool.js`                                |
+| Reliability (timeout/retry/circuit) | `src/services/reliability.js`                            |
+| Cache (TTL + LRU)                   | `src/services/cache.js`                                  |
+| Cost & token estimation             | `src/services/cost.js`                                   |
+| Budgets / quotas                    | `src/services/budget.js`                                 |
+| Token saver                         | `src/services/tokenSaver.js`                             |
+| Metrics                             | `src/services/metrics.js`                                |
+| Structured logging                  | `src/services/logger.js`                                 |
+| Routes                              | `src/routes/{chat,embeddings,anthropic,models,admin}.js` |
 
 ## Key design decisions
 

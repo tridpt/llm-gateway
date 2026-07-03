@@ -47,7 +47,7 @@ export function verifyPassword(password, stored) {
     salt,
     Number(iterations),
     expectedBytes.length,
-    digest
+    digest,
   );
   return (
     actualBytes.length === expectedBytes.length &&
@@ -86,11 +86,17 @@ export class TeamStore {
       for (const m of parsed.members || []) {
         if (m && m.key) {
           const member = this._normalize(m);
-          member.username = this._uniqueUsername(member.username || usernameFromName(member.name), member.key);
+          member.username = this._uniqueUsername(
+            member.username || usernameFromName(member.name),
+            member.key,
+          );
           this.members.set(member.key, member);
         }
       }
-      logger.info('Loaded team.json', { members: this.members.size, encrypted: Boolean(this.secret) });
+      logger.info('Loaded team.json', {
+        members: this.members.size,
+        encrypted: Boolean(this.secret),
+      });
     } catch (err) {
       logger.error('Failed to load team.json, starting empty', { error: err.message });
     }
@@ -125,7 +131,9 @@ export class TeamStore {
     const root = normalizeUsername(base) || 'member';
     let candidate = root;
     let i = 2;
-    while ([...this.members.values()].some((m) => m.key !== currentKey && m.username === candidate)) {
+    while (
+      [...this.members.values()].some((m) => m.key !== currentKey && m.username === candidate)
+    ) {
       candidate = `${root}${i++}`;
     }
     return candidate;
@@ -164,7 +172,14 @@ export class TeamStore {
       .map((m) => this._public(m));
   }
 
-  create({ name, username, password, dailyRequests = null, dailyCostUsd = null, admin = false } = {}) {
+  create({
+    name,
+    username,
+    password,
+    dailyRequests = null,
+    dailyCostUsd = null,
+    admin = false,
+  } = {}) {
     const key = 'sk-team-' + crypto.randomBytes(18).toString('hex');
     const plainPassword = password || generatePassword();
     const member = this._normalize({
@@ -179,7 +194,11 @@ export class TeamStore {
 
     this.members.set(key, member);
     this._save();
-    logger.info('Team member created', { name: member.name, username: member.username, admin: member.admin });
+    logger.info('Team member created', {
+      name: member.name,
+      username: member.username,
+      admin: member.admin,
+    });
     return { ...this._public(member), password: plainPassword };
   }
 
@@ -191,7 +210,8 @@ export class TeamStore {
     for (const field of allowed) {
       if (field in patch) m[field] = patch[field];
     }
-    if ('username' in patch) m.username = this._uniqueUsername(patch.username || usernameFromName(m.name), key);
+    if ('username' in patch)
+      m.username = this._uniqueUsername(patch.username || usernameFromName(m.name), key);
     if ('password' in patch && patch.password) m.passwordHash = hashPassword(patch.password);
 
     this.members.set(key, this._normalize({ ...m, key, createdAt: m.createdAt }));

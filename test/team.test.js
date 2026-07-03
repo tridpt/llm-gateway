@@ -6,7 +6,10 @@ import path from 'node:path';
 import { TeamStore } from '../src/services/team.js';
 
 function tmpFile() {
-  return path.join(os.tmpdir(), `llmgw-team-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+  return path.join(
+    os.tmpdir(),
+    `llmgw-team-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
+  );
 }
 function freshStore() {
   const file = tmpFile();

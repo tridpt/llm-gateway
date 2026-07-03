@@ -110,7 +110,7 @@ Mỗi API key có 2 hạn mức/ngày: **số request** và **chi phí USD**. V�
 Usage lưu theo "bucket" gắn với chuỗi ngày `YYYY-MM-DD` (UTC). Sang ngày mới, key bucket đổi → tự động đếm lại từ 0, không cần job dọn dẹp.
 
 **Khác gì rate limit?**
-Rate limit chặn theo *tần suất ngắn hạn* (vd 30 req/phút) để bảo vệ hệ thống. Budget chặn theo *tổng tiêu thụ trong ngày* (số request + chi phí) để kiểm soát chi phí. Hai cơ chế bổ sung cho nhau.
+Rate limit chặn theo _tần suất ngắn hạn_ (vd 30 req/phút) để bảo vệ hệ thống. Budget chặn theo _tổng tiêu thụ trong ngày_ (số request + chi phí) để kiểm soát chi phí. Hai cơ chế bổ sung cho nhau.
 
 ## 4f. Multi-key rotation (giống "combo" của 9router)
 
@@ -124,11 +124,12 @@ Mỗi provider nhận **nhiều API key** (phân tách bằng dấu phẩy: `GEM
 Đây chính là cách các router như 9router "không bao giờ dính rate limit": gộp quota của nhiều tài khoản/key lại, tự né key đang bị giới hạn. Tăng throughput mà không phải nâng cấp gói trả phí.
 
 **Round-robin key khác round-robin provider (load balancing) thế nào?**
-Load balancing (mục 4d) chia tải giữa các *provider/model khác nhau* cùng phục vụ một logical model. Key rotation chia tải giữa nhiều *key của cùng một provider*. Hai tầng này hoạt động độc lập và bổ sung nhau.
+Load balancing (mục 4d) chia tải giữa các _provider/model khác nhau_ cùng phục vụ một logical model. Key rotation chia tải giữa nhiều _key của cùng một provider_. Hai tầng này hoạt động độc lập và bổ sung nhau.
 
 ## 4g. Token saver (giảm token = giảm tiền)
 
 Bật `TOKEN_SAVER_ENABLED=true` để cắt request chat trước khi gửi tới provider:
+
 - Nén khoảng trắng thừa trong nội dung message.
 - Chỉ giữ `TOKEN_SAVER_MAX_MESSAGES` message gần nhất (không tính system).
 - Bỏ bớt message cũ nhất cho tới khi token ước lượng lọt dưới `TOKEN_SAVER_MAX_INPUT_TOKENS`.

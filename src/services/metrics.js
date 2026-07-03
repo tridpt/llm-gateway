@@ -86,9 +86,7 @@ class Metrics {
     const uptimeSeconds = Math.round((Date.now() - this.startedAt) / 1000);
     const totalCacheLookups = this.totals.cacheHits + this.totals.cacheMisses;
     const cacheHitRate =
-      totalCacheLookups > 0
-        ? Math.round((this.totals.cacheHits / totalCacheLookups) * 100)
-        : 0;
+      totalCacheLookups > 0 ? Math.round((this.totals.cacheHits / totalCacheLookups) * 100) : 0;
 
     return {
       uptimeSeconds,
@@ -132,16 +130,41 @@ class Metrics {
       }
     };
 
-    metric('llmgw_uptime_seconds', 'Gateway uptime in seconds', 'gauge', Math.round((Date.now() - this.startedAt) / 1000));
+    metric(
+      'llmgw_uptime_seconds',
+      'Gateway uptime in seconds',
+      'gauge',
+      Math.round((Date.now() - this.startedAt) / 1000),
+    );
     metric('llmgw_requests_total', 'Total requests handled', 'counter', t.requests);
     metric('llmgw_cache_hits_total', 'Total cache hits', 'counter', t.cacheHits);
     metric('llmgw_cache_misses_total', 'Total cache misses', 'counter', t.cacheMisses);
     metric('llmgw_errors_total', 'Total failed requests', 'counter', t.errors);
-    metric('llmgw_fallbacks_total', 'Total requests served via fallback provider', 'counter', t.fallbacks);
-    metric('llmgw_rate_limited_total', 'Total requests rejected by rate limiting', 'counter', t.rateLimited);
+    metric(
+      'llmgw_fallbacks_total',
+      'Total requests served via fallback provider',
+      'counter',
+      t.fallbacks,
+    );
+    metric(
+      'llmgw_rate_limited_total',
+      'Total requests rejected by rate limiting',
+      'counter',
+      t.rateLimited,
+    );
     metric('llmgw_input_tokens_total', 'Total prompt/input tokens', 'counter', t.inputTokens);
-    metric('llmgw_output_tokens_total', 'Total completion/output tokens', 'counter', t.outputTokens);
-    metric('llmgw_cost_usd_total', 'Total estimated cost in USD', 'counter', Math.round(t.costUsd * 1e6) / 1e6);
+    metric(
+      'llmgw_output_tokens_total',
+      'Total completion/output tokens',
+      'counter',
+      t.outputTokens,
+    );
+    metric(
+      'llmgw_cost_usd_total',
+      'Total estimated cost in USD',
+      'counter',
+      Math.round(t.costUsd * 1e6) / 1e6,
+    );
 
     // Per-provider request counts (labelled).
     const providerRows = Object.entries(this.byProvider).map(([name, s]) => [
@@ -149,7 +172,13 @@ class Metrics {
       s.requests || 0,
     ]);
     if (providerRows.length) {
-      metric('llmgw_provider_requests_total', 'Requests per provider', 'counter', providerRows, true);
+      metric(
+        'llmgw_provider_requests_total',
+        'Requests per provider',
+        'counter',
+        providerRows,
+        true,
+      );
     }
 
     // Per-model request counts (labelled).

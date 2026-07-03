@@ -39,8 +39,11 @@ function saveConvos() {
   localStorage.setItem(lsKey('convos'), JSON.stringify(state.convos));
 }
 function loadConvosLocal() {
-  try { state.convos = JSON.parse(localStorage.getItem(lsKey('convos')) || '[]'); }
-  catch { state.convos = []; }
+  try {
+    state.convos = JSON.parse(localStorage.getItem(lsKey('convos')) || '[]');
+  } catch {
+    state.convos = [];
+  }
   normalizeConvos();
 }
 
@@ -56,7 +59,9 @@ async function loadConvos() {
       saveConvos(); // keep a local cache
       return;
     }
-  } catch { /* fall through to local */ }
+  } catch {
+    /* fall through to local */
+  }
   state.remote = false;
   loadConvosLocal();
 }
@@ -68,8 +73,12 @@ function pushConvo(c) {
     method: 'PUT',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({
-      title: c.title, system: c.system, model: c.model,
-      messages: c.messages, created: c.created, pinned: Boolean(c.pinned),
+      title: c.title,
+      system: c.system,
+      model: c.model,
+      messages: c.messages,
+      created: c.created,
+      pinned: Boolean(c.pinned),
     }),
   }).catch(() => {});
 }
@@ -77,7 +86,8 @@ function pushConvo(c) {
 function remoteDelete(id) {
   if (!state.remote) return;
   fetch(api('/v1/conversations/' + encodeURIComponent(id)), {
-    method: 'DELETE', headers: authHeaders(),
+    method: 'DELETE',
+    headers: authHeaders(),
   }).catch(() => {});
 }
 
@@ -107,7 +117,9 @@ function sortConvos() {
 }
 
 /* ── Auth header + fetch helper ───────────────────────────── */
-function api(path) { return (state.base || '') + path; }
+function api(path) {
+  return (state.base || '') + path;
+}
 function authHeaders(extra = {}) {
   return { Authorization: 'Bearer ' + state.key, ...extra };
 }
@@ -133,7 +145,10 @@ $('loginForm').addEventListener('submit', async (e) => {
   if (state.authMode === 'password') {
     const username = $('loginUsername').value.trim();
     const password = $('loginPassword').value;
-    if (!username || !password) { err.textContent = 'Username and password are required.'; return; }
+    if (!username || !password) {
+      err.textContent = 'Username and password are required.';
+      return;
+    }
 
     try {
       const res = await fetch((base || '') + '/v1/login', {
@@ -142,23 +157,32 @@ $('loginForm').addEventListener('submit', async (e) => {
         body: JSON.stringify({ username, password }),
       });
       const data = await res.json().catch(() => ({}));
-      if (res.status === 401) { err.textContent = 'Invalid username or password.'; return; }
-      if (!res.ok) { err.textContent = data.error?.message || ('Gateway error: HTTP ' + res.status); return; }
+      if (res.status === 401) {
+        err.textContent = 'Invalid username or password.';
+        return;
+      }
+      if (!res.ok) {
+        err.textContent = data.error?.message || 'Gateway error: HTTP ' + res.status;
+        return;
+      }
 
       state.name = data.member?.name || username;
       state.username = data.member?.username || username;
       state.memberKey = data.member?.key || '';
       state.key = data.token;
       state.base = base;
-      localStorage.setItem('teamchat:session', JSON.stringify({
-        mode: 'password',
-        name: state.name,
-        username: state.username,
-        memberKey: state.memberKey,
-        token: state.key,
-        base,
-        expiresAt: data.expiresAt,
-      }));
+      localStorage.setItem(
+        'teamchat:session',
+        JSON.stringify({
+          mode: 'password',
+          name: state.name,
+          username: state.username,
+          memberKey: state.memberKey,
+          token: state.key,
+          base,
+          expiresAt: data.expiresAt,
+        }),
+      );
       await startApp();
       return;
     } catch (e2) {
@@ -169,14 +193,23 @@ $('loginForm').addEventListener('submit', async (e) => {
 
   const name = $('loginName').value.trim() || 'You';
   const key = $('loginKey').value.trim();
-  if (!key) { err.textContent = 'Gateway API key is required.'; return; }
+  if (!key) {
+    err.textContent = 'Gateway API key is required.';
+    return;
+  }
 
   try {
     const res = await fetch((base || '') + '/v1/models', {
       headers: { Authorization: 'Bearer ' + key },
     });
-    if (res.status === 401) { err.textContent = 'Invalid gateway API key.'; return; }
-    if (!res.ok) { err.textContent = 'Gateway error: HTTP ' + res.status; return; }
+    if (res.status === 401) {
+      err.textContent = 'Invalid gateway API key.';
+      return;
+    }
+    if (!res.ok) {
+      err.textContent = 'Gateway error: HTTP ' + res.status;
+      return;
+    }
   } catch (e2) {
     err.textContent = 'Could not reach gateway' + (base ? ' at ' + base : '') + '.';
     return;
@@ -187,7 +220,10 @@ $('loginForm').addEventListener('submit', async (e) => {
   state.memberKey = key;
   state.username = '';
   state.base = base;
-  localStorage.setItem('teamchat:session', JSON.stringify({ mode: 'key', name, key, memberKey: key, base }));
+  localStorage.setItem(
+    'teamchat:session',
+    JSON.stringify({ mode: 'key', name, key, memberKey: key, base }),
+  );
   await startApp();
 });
 
@@ -203,7 +239,9 @@ function tryRestoreSession() {
       state.base = s.base || '';
       startApp();
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 $('logout').addEventListener('click', () => {
@@ -218,7 +256,9 @@ async function startApp() {
   $('app').classList.remove('hidden');
 
   $('userName').textContent = state.name;
-  $('userKey').textContent = state.username ? '@' + state.username : maskKey(state.memberKey || state.key);
+  $('userKey').textContent = state.username
+    ? '@' + state.username
+    : maskKey(state.memberKey || state.key);
   $('userAvatar').textContent = (state.name[0] || '?').toUpperCase();
 
   const ok = await loadMe();
@@ -258,10 +298,14 @@ async function loadMe() {
       $('userName').textContent = me.name;
       $('userAvatar').textContent = (me.name[0] || '?').toUpperCase();
     }
-    $('userKey').textContent = state.username ? '@' + state.username : maskKey(state.memberKey || state.key);
+    $('userKey').textContent = state.username
+      ? '@' + state.username
+      : maskKey(state.memberKey || state.key);
     $('adminBtn').classList.toggle('hidden', !state.admin);
     return true;
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
 
 /* ── Models ───────────────────────────────────────────────── */
@@ -270,7 +314,9 @@ async function loadModels() {
     const res = await fetch(api('/v1/models'), { headers: authHeaders() });
     const data = await res.json();
     state.models = (data.data || []).map((m) => m.id);
-  } catch { state.models = []; }
+  } catch {
+    state.models = [];
+  }
 
   const sel = $('modelSelect');
   sel.innerHTML = '';
@@ -278,7 +324,8 @@ async function loadModels() {
   const list = state.models.length ? state.models : ['gpt-4o-mini'];
   for (const id of list) {
     const opt = document.createElement('option');
-    opt.value = id; opt.textContent = id;
+    opt.value = id;
+    opt.textContent = id;
     sel.appendChild(opt);
   }
   state.model = saved && list.includes(saved) ? saved : list[0];
@@ -288,11 +335,16 @@ $('modelSelect').addEventListener('change', (e) => {
   state.model = e.target.value;
   localStorage.setItem(lsKey('model'), state.model);
   const c = current();
-  if (c) { c.model = state.model; persist(c); }
+  if (c) {
+    c.model = state.model;
+    persist(c);
+  }
 });
 
 /* ── Conversations ────────────────────────────────────────── */
-function current() { return state.convos.find((c) => c.id === state.currentId); }
+function current() {
+  return state.convos.find((c) => c.id === state.currentId);
+}
 
 function newConvo() {
   const c = {
@@ -355,7 +407,8 @@ function renderConvListLegacy() {
     title.className = 'title';
     title.textContent = c.title || 'New chat';
     const del = document.createElement('button');
-    del.className = 'del'; del.textContent = '🗑';
+    del.className = 'del';
+    del.textContent = '🗑';
     del.title = 'Delete chat';
     del.onclick = (e) => deleteConvo(c.id, e);
     item.appendChild(title);
@@ -396,7 +449,9 @@ function convoMatches(c) {
     c.title || '',
     c.system || '',
     ...(c.messages || []).map((m) => m.content || ''),
-  ].join('\n').toLowerCase();
+  ]
+    .join('\n')
+    .toLowerCase();
   return haystack.includes(state.search);
 }
 
@@ -411,9 +466,7 @@ function renderConvList() {
   for (const c of convos) {
     const item = document.createElement('div');
     item.className =
-      'conv-item' +
-      (c.id === state.currentId ? ' active' : '') +
-      (c.pinned ? ' pinned' : '');
+      'conv-item' + (c.id === state.currentId ? ' active' : '') + (c.pinned ? ' pinned' : '');
     item.onclick = () => selectConvo(c.id);
 
     const pin = document.createElement('span');
@@ -457,7 +510,10 @@ $('sysBtn').addEventListener('click', () => $('sysPanel').classList.toggle('hidd
 $('sysClose').addEventListener('click', () => $('sysPanel').classList.add('hidden'));
 $('sysSave').addEventListener('click', () => {
   const c = current();
-  if (c) { c.system = $('sysInput').value.trim(); persist(c); }
+  if (c) {
+    c.system = $('sysInput').value.trim();
+    persist(c);
+  }
   $('sysPanel').classList.add('hidden');
 });
 
@@ -632,7 +688,8 @@ function saveEditedMessage(index, value) {
 
 function regenerateFrom(index) {
   const c = current();
-  if (!c || state.controller || !c.messages[index] || c.messages[index].role !== 'assistant') return;
+  if (!c || state.controller || !c.messages[index] || c.messages[index].role !== 'assistant')
+    return;
   const prior = c.messages.slice(0, index);
   if (!prior.some((m) => m.role === 'user')) {
     hint('Nothing to regenerate yet.', true);
@@ -652,8 +709,10 @@ function escapeHtml(s) {
 function renderMarkdown(text) {
   let t = escapeHtml(text);
   // Fenced code blocks
-  t = t.replace(/```(\w+)?\n?([\s\S]*?)```/g, (_, lang, code) =>
-    '<pre><code>' + code.replace(/\n$/, '') + '</code></pre>');
+  t = t.replace(
+    /```(\w+)?\n?([\s\S]*?)```/g,
+    (_, lang, code) => '<pre><code>' + code.replace(/\n$/, '') + '</code></pre>',
+  );
   // Inline code
   t = t.replace(/`([^`\n]+)`/g, '<code>$1</code>');
   // Bold / italic
@@ -674,10 +733,15 @@ input.addEventListener('input', () => {
   input.style.height = Math.min(input.scrollHeight, 200) + 'px';
 });
 input.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    send();
+  }
 });
 $('send').addEventListener('click', send);
-$('stop').addEventListener('click', () => { if (state.controller) state.controller.abort(); });
+$('stop').addEventListener('click', () => {
+  if (state.controller) state.controller.abort();
+});
 
 function setSending(on) {
   $('send').classList.toggle('hidden', on);
@@ -741,7 +805,10 @@ async function sendLegacy() {
 
     if (!res.ok) {
       let detail = 'HTTP ' + res.status;
-      try { const j = await res.json(); detail = j.error?.message || detail; } catch {}
+      try {
+        const j = await res.json();
+        detail = j.error?.message || detail;
+      } catch {}
       asstBody.classList.remove('cursor-blink');
       asstBody.innerHTML = renderMarkdown('⚠️ ' + detail);
       hint(res.status === 429 ? 'Daily budget reached — resets at UTC midnight.' : detail, true);
@@ -768,7 +835,10 @@ async function sendLegacy() {
     if (e.name === 'AbortError') {
       const partial = acc + '\n\n_(stopped)_';
       asstBody.innerHTML = renderMarkdown(partial);
-      if (acc) { c.messages.push({ role: 'assistant', content: acc }); persist(c); }
+      if (acc) {
+        c.messages.push({ role: 'assistant', content: acc });
+        persist(c);
+      }
       hint('Stopped.');
     } else {
       asstBody.innerHTML = renderMarkdown('⚠️ ' + e.message);
@@ -837,7 +907,10 @@ async function generateAssistant(c) {
 
     if (!res.ok) {
       let detail = 'HTTP ' + res.status;
-      try { const j = await res.json(); detail = j.error?.message || detail; } catch {}
+      try {
+        const j = await res.json();
+        detail = j.error?.message || detail;
+      } catch {}
       const content = 'Warning: ' + detail;
       c.messages.push({ role: 'assistant', content });
       c.updated = Date.now();
@@ -905,8 +978,13 @@ async function readSSE(res, onDelta) {
       try {
         const json = JSON.parse(data);
         const delta = json.choices?.[0]?.delta?.content;
-        if (delta) { full += delta; onDelta(delta); }
-      } catch { /* ignore keep-alives / partials */ }
+        if (delta) {
+          full += delta;
+          onDelta(delta);
+        }
+      } catch {
+        /* ignore keep-alives / partials */
+      }
     }
   }
   return full;
@@ -919,7 +997,9 @@ async function refreshBudget() {
     if (!res.ok) return;
     const d = await res.json();
     renderBudget(d.usage, d.limits);
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 function updateBudgetFromHeaders(headers) {
@@ -930,14 +1010,20 @@ function updateBudgetFromHeaders(headers) {
   if (reqUsed == null && costUsed == null) return;
   renderBudget(
     { requests: num(reqUsed), costUsd: num(costUsed) },
-    { dailyRequests: reqLimit != null ? num(reqLimit) : null,
-      dailyCostUsd: costLimit != null ? num(costLimit) : null }
+    {
+      dailyRequests: reqLimit != null ? num(reqLimit) : null,
+      dailyCostUsd: costLimit != null ? num(costLimit) : null,
+    },
   );
 }
-function num(v) { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; }
+function num(v) {
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : 0;
+}
 
 function renderBudget(usage, limits) {
-  usage = usage || {}; limits = limits || {};
+  usage = usage || {};
+  limits = limits || {};
   const req = usage.requests || 0;
   const cost = usage.costUsd || 0;
 
@@ -982,7 +1068,10 @@ async function loadTeam() {
   tbody.innerHTML = '<tr><td colspan="6">Loading…</td></tr>';
   try {
     const res = await fetch(api('/admin/team'), { headers: authHeaders() });
-    if (!res.ok) { tbody.innerHTML = '<tr><td colspan="6">Failed: HTTP ' + res.status + '</td></tr>'; return; }
+    if (!res.ok) {
+      tbody.innerHTML = '<tr><td colspan="6">Failed: HTTP ' + res.status + '</td></tr>';
+      return;
+    }
     const data = await res.json();
     renderTeam(data.members || []);
   } catch (e) {
@@ -990,7 +1079,9 @@ async function loadTeam() {
   }
 }
 
-function lim(v, unit) { return v == null ? '∞' : (unit === '$' ? '$' + v : v + unit); }
+function lim(v, unit) {
+  return v == null ? '∞' : unit === '$' ? '$' + v : v + unit;
+}
 
 function inviteText(member, password) {
   const url = (state.base || location.origin) + '/chat';
@@ -1012,26 +1103,59 @@ function copyText(text, button) {
 
 function renderTeam(members) {
   const tbody = $('teamRows');
-  if (!members.length) { tbody.innerHTML = '<tr><td colspan="6">No members yet. Add one above.</td></tr>'; return; }
+  if (!members.length) {
+    tbody.innerHTML = '<tr><td colspan="6">No members yet. Add one above.</td></tr>';
+    return;
+  }
   tbody.innerHTML = '';
   for (const m of members) {
     const tr = document.createElement('tr');
     const isMe = m.key === (state.memberKey || state.key);
     const u = m.usage || {};
     tr.innerHTML =
-      '<td>' + escapeHtml(m.name) + (m.admin ? ' <span class="tag admin">admin</span>' : '') +
-        (isMe ? ' <span class="tag">you</span>' : '') + '</td>' +
-      '<td class="keycell"><span>@' + escapeHtml(m.username || 'not-set') + '</span> ' +
-        '<button data-invite="' + escapeHtml(m.key) + '">invite</button></td>' +
-      '<td>' + (u.requests || 0) + ' req · $' + (u.costUsd || 0).toFixed(4) + '</td>' +
-      '<td>' + lim(m.dailyRequests, ' req') + ' · ' + lim(m.dailyCostUsd, '$') + '</td>' +
-      '<td><span class="tag ' + (m.disabled ? 'off' : 'on') + '">' + (m.disabled ? 'disabled' : 'active') + '</span></td>' +
+      '<td>' +
+      escapeHtml(m.name) +
+      (m.admin ? ' <span class="tag admin">admin</span>' : '') +
+      (isMe ? ' <span class="tag">you</span>' : '') +
+      '</td>' +
+      '<td class="keycell"><span>@' +
+      escapeHtml(m.username || 'not-set') +
+      '</span> ' +
+      '<button data-invite="' +
+      escapeHtml(m.key) +
+      '">invite</button></td>' +
+      '<td>' +
+      (u.requests || 0) +
+      ' req · $' +
+      (u.costUsd || 0).toFixed(4) +
+      '</td>' +
+      '<td>' +
+      lim(m.dailyRequests, ' req') +
+      ' · ' +
+      lim(m.dailyCostUsd, '$') +
+      '</td>' +
+      '<td><span class="tag ' +
+      (m.disabled ? 'off' : 'on') +
+      '">' +
+      (m.disabled ? 'disabled' : 'active') +
+      '</span></td>' +
       '<td class="row-actions">' +
-        '<button data-reset="' + escapeHtml(m.key) + '">Reset password</button>' +
-        '<button data-copy-key="' + escapeHtml(m.key) + '">Copy key</button>' +
-        '<button data-toggle="' + escapeHtml(m.key) + '" data-dis="' + (m.disabled ? '0' : '1') + '">' +
-          (m.disabled ? 'Enable' : 'Disable') + '</button>' +
-        '<button class="danger" data-del="' + escapeHtml(m.key) + '">Remove</button>' +
+      '<button data-reset="' +
+      escapeHtml(m.key) +
+      '">Reset password</button>' +
+      '<button data-copy-key="' +
+      escapeHtml(m.key) +
+      '">Copy key</button>' +
+      '<button data-toggle="' +
+      escapeHtml(m.key) +
+      '" data-dis="' +
+      (m.disabled ? '0' : '1') +
+      '">' +
+      (m.disabled ? 'Enable' : 'Disable') +
+      '</button>' +
+      '<button class="danger" data-del="' +
+      escapeHtml(m.key) +
+      '">Remove</button>' +
       '</td>';
     tbody.appendChild(tr);
   }
@@ -1040,15 +1164,24 @@ function renderTeam(members) {
     b.addEventListener('click', () => {
       const member = members.find((m) => m.key === b.dataset.invite);
       if (member) copyText(inviteText(member), b);
-    }));
-  tbody.querySelectorAll('[data-copy-key]').forEach((b) =>
-    b.addEventListener('click', () => copyText(b.dataset.copyKey, b)));
-  tbody.querySelectorAll('[data-reset]').forEach((b) =>
-    b.addEventListener('click', () => resetPassword(b.dataset.reset)));
-  tbody.querySelectorAll('[data-toggle]').forEach((b) =>
-    b.addEventListener('click', () => patchMember(b.dataset.toggle, { disabled: b.dataset.dis === '1' })));
-  tbody.querySelectorAll('[data-del]').forEach((b) =>
-    b.addEventListener('click', () => removeMember(b.dataset.del)));
+    }),
+  );
+  tbody
+    .querySelectorAll('[data-copy-key]')
+    .forEach((b) => b.addEventListener('click', () => copyText(b.dataset.copyKey, b)));
+  tbody
+    .querySelectorAll('[data-reset]')
+    .forEach((b) => b.addEventListener('click', () => resetPassword(b.dataset.reset)));
+  tbody
+    .querySelectorAll('[data-toggle]')
+    .forEach((b) =>
+      b.addEventListener('click', () =>
+        patchMember(b.dataset.toggle, { disabled: b.dataset.dis === '1' }),
+      ),
+    );
+  tbody
+    .querySelectorAll('[data-del]')
+    .forEach((b) => b.addEventListener('click', () => removeMember(b.dataset.del)));
 }
 
 $('addForm').addEventListener('submit', async (e) => {
@@ -1071,10 +1204,15 @@ $('addForm').addEventListener('submit', async (e) => {
       body: JSON.stringify(body),
     });
     const data = await res.json();
-    if (!res.ok) { alert(data.error?.message || 'Failed'); return; }
+    if (!res.ok) {
+      alert(data.error?.message || 'Failed');
+      return;
+    }
     const banner = $('newKeyBanner');
-    banner.innerHTML = 'Member created. Share this key — it is shown only once:<br><code>' +
-      escapeHtml(data.member.key) + '</code>';
+    banner.innerHTML =
+      'Member created. Share this key — it is shown only once:<br><code>' +
+      escapeHtml(data.member.key) +
+      '</code>';
     banner.classList.remove('hidden');
     const invite = inviteText(data.member, data.member.password);
     banner.innerHTML =
@@ -1084,7 +1222,9 @@ $('addForm').addEventListener('submit', async (e) => {
     $('copyNewInvite').addEventListener('click', (ev) => copyText(invite, ev.target));
     $('addForm').reset();
     await loadTeam();
-  } catch (e2) { alert(e2.message); }
+  } catch (e2) {
+    alert(e2.message);
+  }
 });
 
 async function patchMember(key, patch) {
@@ -1094,9 +1234,15 @@ async function patchMember(key, patch) {
       headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(patch),
     });
-    if (!res.ok) { const j = await res.json(); alert(j.error?.message || 'Failed'); return; }
+    if (!res.ok) {
+      const j = await res.json();
+      alert(j.error?.message || 'Failed');
+      return;
+    }
     await loadTeam();
-  } catch (e) { alert(e.message); }
+  } catch (e) {
+    alert(e.message);
+  }
 }
 
 async function resetPassword(key) {
@@ -1107,7 +1253,10 @@ async function resetPassword(key) {
       headers: authHeaders(),
     });
     const data = await res.json();
-    if (!res.ok) { alert(data.error?.message || 'Failed'); return; }
+    if (!res.ok) {
+      alert(data.error?.message || 'Failed');
+      return;
+    }
     const invite = inviteText(data.member, data.member.password);
     const banner = $('newKeyBanner');
     banner.innerHTML =
@@ -1117,18 +1266,27 @@ async function resetPassword(key) {
     banner.classList.remove('hidden');
     $('copyNewInvite').addEventListener('click', (ev) => copyText(invite, ev.target));
     await loadTeam();
-  } catch (e) { alert(e.message); }
+  } catch (e) {
+    alert(e.message);
+  }
 }
 
 async function removeMember(key) {
   if (!confirm('Remove this member? Their key will stop working immediately.')) return;
   try {
     const res = await fetch(api('/admin/team/' + encodeURIComponent(key)), {
-      method: 'DELETE', headers: authHeaders(),
+      method: 'DELETE',
+      headers: authHeaders(),
     });
-    if (!res.ok) { const j = await res.json(); alert(j.error?.message || 'Failed'); return; }
+    if (!res.ok) {
+      const j = await res.json();
+      alert(j.error?.message || 'Failed');
+      return;
+    }
     await loadTeam();
-  } catch (e) { alert(e.message); }
+  } catch (e) {
+    alert(e.message);
+  }
 }
 
 /* ── Go ───────────────────────────────────────────────────── */

@@ -244,7 +244,10 @@ test('conversations are private to the owning key', async () => {
   assert.equal(bGet.status, 404);
 
   // A can delete their own.
-  const del = await fetch(`${base}/v1/conversations/c1`, { method: 'DELETE', headers: bearer(a.key) });
+  const del = await fetch(`${base}/v1/conversations/c1`, {
+    method: 'DELETE',
+    headers: bearer(a.key),
+  });
   assert.equal(del.status, 200);
   server.close();
 });

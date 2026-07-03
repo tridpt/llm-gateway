@@ -28,10 +28,7 @@ class ResponseCache {
       top_p: body.top_p ?? null,
       max_tokens: body.max_tokens ?? null,
     };
-    return crypto
-      .createHash('sha256')
-      .update(JSON.stringify(relevant))
-      .digest('hex');
+    return crypto.createHash('sha256').update(JSON.stringify(relevant)).digest('hex');
   }
 
   get(key) {

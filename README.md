@@ -71,29 +71,29 @@ client ──► /v1/chat/completions
              └─ structured logging
 ```
 
-| Layer | File |
-|-------|------|
-| Server wiring | `src/index.js` |
-| Config / `.env` loader | `src/config.js` |
-| Provider adapters | `src/providers/{mock,openai,anthropic,gemini}.js` |
-| Fallback logic | `src/providers/index.js` |
-| Smart router | `src/routing/router.js` |
-| Key rotation pool | `src/services/keypool.js` |
-| Latency tracker | `src/services/latency.js` |
-| Cache (TTL + LRU) | `src/services/cache.js` |
-| Reliability (timeout/retry/circuit) | `src/services/reliability.js` |
-| Cost & tokens | `src/services/cost.js` |
-| Metrics | `src/services/metrics.js` |
-| Logging | `src/services/logger.js` |
-| Auth / rate limit | `src/middleware/*` |
-| Budget / quota | `src/services/budget.js` |
-| Token saver | `src/services/tokenSaver.js` |
-| Chat route (core) | `src/routes/chat.js` |
-| Embeddings route | `src/routes/embeddings.js` |
-| Anthropic route | `src/routes/anthropic.js` |
-| Models route | `src/routes/models.js` |
-| Admin route | `src/routes/admin.js` |
-| Dashboard | `public/index.html` |
+| Layer                               | File                                              |
+| ----------------------------------- | ------------------------------------------------- |
+| Server wiring                       | `src/index.js`                                    |
+| Config / `.env` loader              | `src/config.js`                                   |
+| Provider adapters                   | `src/providers/{mock,openai,anthropic,gemini}.js` |
+| Fallback logic                      | `src/providers/index.js`                          |
+| Smart router                        | `src/routing/router.js`                           |
+| Key rotation pool                   | `src/services/keypool.js`                         |
+| Latency tracker                     | `src/services/latency.js`                         |
+| Cache (TTL + LRU)                   | `src/services/cache.js`                           |
+| Reliability (timeout/retry/circuit) | `src/services/reliability.js`                     |
+| Cost & tokens                       | `src/services/cost.js`                            |
+| Metrics                             | `src/services/metrics.js`                         |
+| Logging                             | `src/services/logger.js`                          |
+| Auth / rate limit                   | `src/middleware/*`                                |
+| Budget / quota                      | `src/services/budget.js`                          |
+| Token saver                         | `src/services/tokenSaver.js`                      |
+| Chat route (core)                   | `src/routes/chat.js`                              |
+| Embeddings route                    | `src/routes/embeddings.js`                        |
+| Anthropic route                     | `src/routes/anthropic.js`                         |
+| Models route                        | `src/routes/models.js`                            |
+| Admin route                         | `src/routes/admin.js`                             |
+| Dashboard                           | `public/index.html`                               |
 
 ## Quick start
 
@@ -192,10 +192,10 @@ upstream provider keys to anyone:
 
 ```json
 {
-  "default": { "dailyRequests": 200, "dailyCostUsd": 0.50 },
+  "default": { "dailyRequests": 200, "dailyCostUsd": 0.5 },
   "keys": {
     "alice-key": { "dailyRequests": 1000, "dailyCostUsd": 5.0 },
-    "bob-key":   { "dailyRequests": 100,  "dailyCostUsd": 0.25 }
+    "bob-key": { "dailyRequests": 100, "dailyCostUsd": 0.25 }
   }
 }
 ```
@@ -300,33 +300,33 @@ Because the gateway speaks the OpenAI request shape, the Anthropic adapter trans
 
 ## Endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/v1/chat/completions` | OpenAI-compatible chat completion (auth + rate limited) |
-| POST | `/v1/embeddings` | OpenAI-compatible embeddings for RAG / semantic search |
-| POST | `/v1/messages` | Anthropic-compatible Messages API (translated in & out) |
-| POST | `/v1/login` | Username/password team-chat login; returns a signed session token |
-| GET | `/v1/models` | OpenAI-compatible model catalogue (includes aliases) |
-| GET | `/v1/usage` | Your own daily budget usage + limits (self-service, per key) |
-| GET | `/v1/me` | Your identity, admin flag, usage + limits |
-| GET | `/v1/conversations` | List your synced conversations |
-| PUT | `/v1/conversations/:id` | Create/update a conversation (synced across devices) |
-| DELETE | `/v1/conversations/:id` | Delete one of your conversations |
-| GET | `/chat` | Self-hosted team chat UI (ChatGPT-style front end) |
-| GET | `/admin/metrics` | Aggregate metrics + recent requests |
-| GET | `/admin/routes` | Active routing config (aliases, tiers, models) |
-| GET | `/admin/usage` | Per-key budget usage |
-| GET | `/metrics` | Prometheus exposition format (for scraping/Grafana) |
-| POST | `/admin/metrics/reset` | Reset counters |
-| POST | `/admin/cache/clear` | Empty the cache |
-| GET | `/admin/team` | List team members + their usage (admin only) |
-| POST | `/admin/team` | Create a member, returns generated username/password plus key (admin only) |
-| PATCH | `/admin/team/:key` | Update name/username/password/limits/admin/disabled (admin only) |
-| POST | `/admin/team/:key/password/reset` | Reset a member password and return the new one (admin only) |
-| DELETE | `/admin/team/:key` | Remove a member (admin only) |
-| GET | `/admin/pricing` | Current pricing table |
-| GET | `/health` | Liveness probe |
-| GET | `/dashboard` | Live observability UI |
+| Method | Path                              | Description                                                                |
+| ------ | --------------------------------- | -------------------------------------------------------------------------- |
+| POST   | `/v1/chat/completions`            | OpenAI-compatible chat completion (auth + rate limited)                    |
+| POST   | `/v1/embeddings`                  | OpenAI-compatible embeddings for RAG / semantic search                     |
+| POST   | `/v1/messages`                    | Anthropic-compatible Messages API (translated in & out)                    |
+| POST   | `/v1/login`                       | Username/password team-chat login; returns a signed session token          |
+| GET    | `/v1/models`                      | OpenAI-compatible model catalogue (includes aliases)                       |
+| GET    | `/v1/usage`                       | Your own daily budget usage + limits (self-service, per key)               |
+| GET    | `/v1/me`                          | Your identity, admin flag, usage + limits                                  |
+| GET    | `/v1/conversations`               | List your synced conversations                                             |
+| PUT    | `/v1/conversations/:id`           | Create/update a conversation (synced across devices)                       |
+| DELETE | `/v1/conversations/:id`           | Delete one of your conversations                                           |
+| GET    | `/chat`                           | Self-hosted team chat UI (ChatGPT-style front end)                         |
+| GET    | `/admin/metrics`                  | Aggregate metrics + recent requests                                        |
+| GET    | `/admin/routes`                   | Active routing config (aliases, tiers, models)                             |
+| GET    | `/admin/usage`                    | Per-key budget usage                                                       |
+| GET    | `/metrics`                        | Prometheus exposition format (for scraping/Grafana)                        |
+| POST   | `/admin/metrics/reset`            | Reset counters                                                             |
+| POST   | `/admin/cache/clear`              | Empty the cache                                                            |
+| GET    | `/admin/team`                     | List team members + their usage (admin only)                               |
+| POST   | `/admin/team`                     | Create a member, returns generated username/password plus key (admin only) |
+| PATCH  | `/admin/team/:key`                | Update name/username/password/limits/admin/disabled (admin only)           |
+| POST   | `/admin/team/:key/password/reset` | Reset a member password and return the new one (admin only)                |
+| DELETE | `/admin/team/:key`                | Remove a member (admin only)                                               |
+| GET    | `/admin/pricing`                  | Current pricing table                                                      |
+| GET    | `/health`                         | Liveness probe                                                             |
+| GET    | `/dashboard`                      | Live observability UI                                                      |
 
 ## Run with Docker
 
@@ -374,11 +374,11 @@ requested model name into an ordered list of concrete targets (`provider` +
   "models": {
     "gemini-2.5-flash-lite": [
       { "provider": "gemini", "model": "gemini-2.5-flash-lite", "tier": "free" },
-      { "provider": "mock",   "model": "mock-gpt",              "tier": "fallback" }
+      { "provider": "mock", "model": "mock-gpt", "tier": "fallback" }
     ],
     "balanced": [
       { "provider": "gemini", "model": "gemini-2.5-flash-lite", "tier": "free", "weight": 2 },
-      { "provider": "mock",   "model": "mock-gpt",              "tier": "free", "weight": 1 }
+      { "provider": "mock", "model": "mock-gpt", "tier": "free", "weight": 1 }
     ]
   }
 }
@@ -442,7 +442,7 @@ and on the dashboard.
 Every provider call goes through three layers, configurable in `.env`:
 
 1. **Timeout** (`REQUEST_TIMEOUT_MS`) — a call that hangs is aborted instead of blocking forever.
-2. **Retry with backoff** (`RETRY_MAX`, `RETRY_BASE_MS`) — transient errors (HTTP 408/429/5xx, timeouts, network failures) retry the *same* provider with exponential backoff + jitter. Hard errors (400/401/403) fail fast — no point retrying a bad request.
+2. **Retry with backoff** (`RETRY_MAX`, `RETRY_BASE_MS`) — transient errors (HTTP 408/429/5xx, timeouts, network failures) retry the _same_ provider with exponential backoff + jitter. Hard errors (400/401/403) fail fast — no point retrying a bad request.
 3. **Circuit breaker** (`CIRCUIT_FAILURE_THRESHOLD`, `CIRCUIT_COOLDOWN_SECONDS`) — after N consecutive failures a provider is "opened" and skipped for a cooldown window, so the gateway stops wasting time (and your latency budget) on a provider that's down. It half-opens after cooldown to test recovery.
 
 Only then, if a provider still fails, does the request **fall back** to the next provider in `PROVIDER_ORDER`. Circuit state is visible at `/admin/metrics` and on the dashboard.

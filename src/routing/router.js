@@ -76,7 +76,12 @@ export class Router {
 
     // Keep only targets whose provider is usable right now.
     targets = targets
-      .map((t) => ({ provider: t.provider, model: t.model || canonical, tier: t.tier || 'default', weight: t.weight || 1 }))
+      .map((t) => ({
+        provider: t.provider,
+        model: t.model || canonical,
+        tier: t.tier || 'default',
+        weight: t.weight || 1,
+      }))
       .filter((t) => available.has(t.provider));
 
     return this._order(targets, canonical);
@@ -145,9 +150,7 @@ export class Router {
       strategy: this.strategy,
       tiers: this.tiers,
       aliases: this.aliases,
-      models: Object.fromEntries(
-        Object.entries(this.models).map(([k, v]) => [k, v.length])
-      ),
+      models: Object.fromEntries(Object.entries(this.models).map(([k, v]) => [k, v.length])),
     };
   }
 }

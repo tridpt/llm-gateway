@@ -13,8 +13,7 @@ export const embeddingsRouter = express.Router();
 
 function cacheKeyFor(model, input) {
   return (
-    'emb:' +
-    crypto.createHash('sha256').update(JSON.stringify({ model, input })).digest('hex')
+    'emb:' + crypto.createHash('sha256').update(JSON.stringify({ model, input })).digest('hex')
   );
 }
 
@@ -76,7 +75,7 @@ embeddingsRouter.post('/embeddings', async (req, res) => {
         ts: new Date().toISOString(),
       });
       return res.json(
-        buildResponse({ model: hit.model, vectors: hit.vectors, usage: hit.usage, cached: true })
+        buildResponse({ model: hit.model, vectors: hit.vectors, usage: hit.usage, cached: true }),
       );
     }
   }
@@ -97,7 +96,7 @@ embeddingsRouter.post('/embeddings', async (req, res) => {
     const { result, provider, tier, usedFallback } = await executeAcrossTargets(
       targets,
       (p, m, signal) => p.embeddings({ input, model: m, signal }),
-      { requestId }
+      { requestId },
     );
 
     const costUsd = computeCost(result.model, result.usage.inputTokens, 0);
@@ -136,9 +135,7 @@ embeddingsRouter.post('/embeddings', async (req, res) => {
       ts: new Date().toISOString(),
     });
 
-    res.json(
-      buildResponse({ model: result.model, vectors: result.vectors, usage: result.usage })
-    );
+    res.json(buildResponse({ model: result.model, vectors: result.vectors, usage: result.usage }));
   } catch (err) {
     const latencyMs = Date.now() - startedAt;
     logger.error('Embeddings request failed', { requestId, error: err.message, latencyMs });

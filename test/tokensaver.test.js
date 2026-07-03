@@ -20,10 +20,7 @@ test('keeps only the most recent N messages', () => {
 });
 
 test('always preserves system messages', () => {
-  const messages = [
-    { role: 'system', content: 'rules' },
-    ...convo(20),
-  ];
+  const messages = [{ role: 'system', content: 'rules' }, ...convo(20)];
   const { messages: out } = applyTokenSaver(messages, { maxMessages: 2 });
   assert.equal(out.filter((m) => m.role === 'system').length, 1);
   assert.equal(out[0].role, 'system');
@@ -53,7 +50,10 @@ test('reports tokens saved and does not mutate input', () => {
 
 test('no-op when nothing to trim', () => {
   const messages = [{ role: 'user', content: 'hi' }];
-  const { messages: out, stats } = applyTokenSaver(messages, { maxMessages: 12, trimWhitespace: true });
+  const { messages: out, stats } = applyTokenSaver(messages, {
+    maxMessages: 12,
+    trimWhitespace: true,
+  });
   assert.equal(out.length, 1);
   assert.equal(stats.droppedMessages, 0);
 });

@@ -76,7 +76,9 @@ export class KeyPool {
 /** One pool per provider, built from config. */
 export const keyPools = {
   openai: new KeyPool('openai', config.openai.apiKeys, { cooldownMs: config.keyCooldownMs }),
-  anthropic: new KeyPool('anthropic', config.anthropic.apiKeys, { cooldownMs: config.keyCooldownMs }),
+  anthropic: new KeyPool('anthropic', config.anthropic.apiKeys, {
+    cooldownMs: config.keyCooldownMs,
+  }),
   gemini: new KeyPool('gemini', config.gemini.apiKeys, { cooldownMs: config.keyCooldownMs }),
 };
 

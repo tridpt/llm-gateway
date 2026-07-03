@@ -29,7 +29,10 @@ class Logger {
     const line = JSON.stringify(entry);
 
     const consoleFn = level === 'error' ? console.error : console.log;
-    consoleFn(`[${entry.ts}] ${level.toUpperCase()} ${message}`, meta.requestId ? `(${meta.requestId})` : '');
+    consoleFn(
+      `[${entry.ts}] ${level.toUpperCase()} ${message}`,
+      meta.requestId ? `(${meta.requestId})` : '',
+    );
 
     if (this.stream) this.stream.write(line + '\n');
   }

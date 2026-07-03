@@ -21,7 +21,7 @@ test('withRetry retries transient errors then succeeds', async () => {
       if (calls < 3) throw new Error('error 503: temporary');
       return 'ok';
     },
-    { retries: 3, baseMs: 1 }
+    { retries: 3, baseMs: 1 },
   );
   assert.equal(result, 'ok');
   assert.equal(calls, 3);
@@ -36,9 +36,9 @@ test('withRetry does not retry hard errors', async () => {
           calls += 1;
           throw new Error('error 400: bad input');
         },
-        { retries: 3, baseMs: 1 }
+        { retries: 3, baseMs: 1 },
       ),
-    /400/
+    /400/,
   );
   assert.equal(calls, 1); // no retries
 });
@@ -46,15 +46,17 @@ test('withRetry does not retry hard errors', async () => {
 test('withTimeout aborts a slow operation', async () => {
   await assert.rejects(
     () =>
-      withTimeout(20, (signal) =>
-        new Promise((_, reject) => {
-          signal.addEventListener('abort', () => {
-            const e = new Error('aborted');
-            e.name = 'AbortError';
-            reject(e);
-          });
-        })
+      withTimeout(
+        20,
+        (signal) =>
+          new Promise((_, reject) => {
+            signal.addEventListener('abort', () => {
+              const e = new Error('aborted');
+              e.name = 'AbortError';
+              reject(e);
+            });
+          }),
       ),
-    (err) => err.name === 'AbortError'
+    (err) => err.name === 'AbortError',
   );
 });

@@ -79,8 +79,7 @@ export const config = {
     apiKeys: list(process.env.GEMINI_API_KEY),
     // Gemini exposes an OpenAI-compatible endpoint.
     baseUrl:
-      process.env.GEMINI_BASE_URL ||
-      'https://generativelanguage.googleapis.com/v1beta/openai',
+      process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai',
   },
 
   // How long a rate-limited (429) API key is rested before being retried.

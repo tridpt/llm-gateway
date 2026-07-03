@@ -57,14 +57,14 @@ OpenAI-compatible chat completion. Supports streaming.
 
 ### Request
 
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| `model` | string | yes | A model id or a routing alias (e.g. `fast`). |
-| `messages` | array | yes | `{ role, content }` items. `role` ∈ system/user/assistant. |
-| `stream` | boolean | no | When `true`, responds with SSE. |
-| `temperature` | number | no | Forwarded to the provider. |
-| `top_p` | number | no | Forwarded to the provider. |
-| `max_tokens` | number | no | Forwarded to the provider. |
+| Field         | Type    | Required | Notes                                                      |
+| ------------- | ------- | -------- | ---------------------------------------------------------- |
+| `model`       | string  | yes      | A model id or a routing alias (e.g. `fast`).               |
+| `messages`    | array   | yes      | `{ role, content }` items. `role` ∈ system/user/assistant. |
+| `stream`      | boolean | no       | When `true`, responds with SSE.                            |
+| `temperature` | number  | no       | Forwarded to the provider.                                 |
+| `top_p`       | number  | no       | Forwarded to the provider.                                 |
+| `max_tokens`  | number  | no       | Forwarded to the provider.                                 |
 
 ```bash
 curl -X POST http://localhost:8080/v1/chat/completions \
@@ -140,13 +140,13 @@ internal format, runs the full pipeline, and translates the response back.
 
 ### Request
 
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| `model` | string | yes | Model id or alias. |
-| `messages` | array | yes | `content` may be a string or an array of `{type:"text",text}` blocks. |
-| `system` | string/array | no | Hoisted into a system message internally. |
-| `max_tokens` | number | no | Forwarded. |
-| `stream` | boolean | no | When `true`, emits Anthropic SSE events. |
+| Field        | Type         | Required | Notes                                                                 |
+| ------------ | ------------ | -------- | --------------------------------------------------------------------- |
+| `model`      | string       | yes      | Model id or alias.                                                    |
+| `messages`   | array        | yes      | `content` may be a string or an array of `{type:"text",text}` blocks. |
+| `system`     | string/array | no       | Hoisted into a system message internally.                             |
+| `max_tokens` | number       | no       | Forwarded.                                                            |
+| `stream`     | boolean      | no       | When `true`, emits Anthropic SSE events.                              |
 
 ```bash
 curl -X POST http://localhost:8080/v1/messages \
@@ -200,30 +200,30 @@ routed models, and known/priced models.
 These are also authenticated (reuse gateway keys or session tokens), except
 `/metrics` and `/health` which are open by convention.
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/health` | Liveness probe (no auth). |
-| GET | `/metrics` | Prometheus exposition format (no auth). |
-| GET | `/admin/metrics` | Full JSON metrics snapshot. |
-| POST | `/admin/metrics/reset` | Reset counters. |
-| POST | `/admin/cache/clear` | Empty the response cache. |
-| GET | `/admin/pricing` | Pricing table (USD per 1M tokens). |
-| GET | `/admin/routes` | Active routing config. |
-| GET | `/admin/usage` | Per-key budget usage. |
-| GET | `/admin/team` | List team members and their usage. |
-| POST | `/admin/team` | Create a member; returns username/password plus the underlying key. |
-| PATCH | `/admin/team/:key` | Update name, username, password, limits, admin flag, or disabled flag. |
-| POST | `/admin/team/:key/password/reset` | Reset a member password and return the new one. |
-| DELETE | `/admin/team/:key` | Remove a member and revoke access. |
+| Method | Path                              | Description                                                            |
+| ------ | --------------------------------- | ---------------------------------------------------------------------- |
+| GET    | `/health`                         | Liveness probe (no auth).                                              |
+| GET    | `/metrics`                        | Prometheus exposition format (no auth).                                |
+| GET    | `/admin/metrics`                  | Full JSON metrics snapshot.                                            |
+| POST   | `/admin/metrics/reset`            | Reset counters.                                                        |
+| POST   | `/admin/cache/clear`              | Empty the response cache.                                              |
+| GET    | `/admin/pricing`                  | Pricing table (USD per 1M tokens).                                     |
+| GET    | `/admin/routes`                   | Active routing config.                                                 |
+| GET    | `/admin/usage`                    | Per-key budget usage.                                                  |
+| GET    | `/admin/team`                     | List team members and their usage.                                     |
+| POST   | `/admin/team`                     | Create a member; returns username/password plus the underlying key.    |
+| PATCH  | `/admin/team/:key`                | Update name, username, password, limits, admin flag, or disabled flag. |
+| POST   | `/admin/team/:key/password/reset` | Reset a member password and return the new one.                        |
+| DELETE | `/admin/team/:key`                | Remove a member and revoke access.                                     |
 
 ### Error codes
 
-| Status | Meaning |
-|--------|---------|
-| 400 | Invalid request body. |
-| 401 | Missing/invalid gateway credentials. |
-| 429 | Rate limit or budget exceeded (`type`: `rate_limit_error` / `budget_exceeded`). |
-| 502 | All providers/targets failed (includes `attempts`). |
-| 503 | No usable providers configured. |
+| Status | Meaning                                                                         |
+| ------ | ------------------------------------------------------------------------------- |
+| 400    | Invalid request body.                                                           |
+| 401    | Missing/invalid gateway credentials.                                            |
+| 429    | Rate limit or budget exceeded (`type`: `rate_limit_error` / `budget_exceeded`). |
+| 502    | All providers/targets failed (includes `attempts`).                             |
+| 503    | No usable providers configured.                                                 |
 
 Rate-limit and budget responses include a `Retry-After` header.

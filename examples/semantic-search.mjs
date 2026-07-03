@@ -53,7 +53,8 @@ function cosine(a, b) {
 }
 
 async function main() {
-  const query = process.argv.slice(2).join(' ') || 'How does the gateway avoid calling a broken provider?';
+  const query =
+    process.argv.slice(2).join(' ') || 'How does the gateway avoid calling a broken provider?';
 
   console.log(`\nModel: ${MODEL}`);
   console.log(`Query: ${query}\n`);
@@ -62,8 +63,9 @@ async function main() {
   const docVectors = await embed(DOCS);
   const [queryVector] = await embed(query);
 
-  const ranked = DOCS.map((text, i) => ({ text, score: cosine(queryVector, docVectors[i]) }))
-    .sort((a, b) => b.score - a.score);
+  const ranked = DOCS.map((text, i) => ({ text, score: cosine(queryVector, docVectors[i]) })).sort(
+    (a, b) => b.score - a.score,
+  );
 
   console.log('Top matches:');
   ranked.slice(0, 3).forEach((r, i) => {

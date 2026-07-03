@@ -1,0 +1,17 @@
+blank_issues_enabled: true
+contact_links:
+  - name: API Reference
+    url: https://github.com/tridpt/llm-gateway/blob/main/docs/API.md
+    about: Every endpoint, request/response shapes, and errors.
+  - name: Configuration Reference
+    url: https://github.com/tridpt/llm-gateway/blob/main/docs/CONFIGURATION.md
+    about: All env vars, routes.json, and budgets.json.
+  - name: Architecture & Design
+    url: https://github.com/tridpt/llm-gateway/blob/main/docs/ARCHITECTURE.md
+    about: Request lifecycle, module map, and design decisions.
+  - name: Tài liệu kỹ thuật (Tiếng Việt)
+    url: https://github.com/tridpt/llm-gateway/blob/main/TAI_LIEU.md
+    about: Kiến trúc và chi tiết kỹ thuật trước khi mở issue.
+  - name: Security policy
+    url: https://github.com/tridpt/llm-gateway/blob/main/SECURITY.md
+    about: Vui lòng báo lỗi bảo mật riêng tư, không mở issue công khai.

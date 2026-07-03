@@ -44,7 +44,10 @@ test('supports batch input (array of strings)', async () => {
   });
   const json = await res.json();
   assert.equal(json.data.length, 3);
-  assert.deepEqual(json.data.map((d) => d.index), [0, 1, 2]);
+  assert.deepEqual(
+    json.data.map((d) => d.index),
+    [0, 1, 2],
+  );
   server.close();
 });
 
@@ -75,7 +78,11 @@ test('embedding results are cached', async () => {
   const { server, base } = await startServer();
   const payload = JSON.stringify({ model: 'mock-embed', input: 'cache this vector' });
   await fetch(`${base}/v1/embeddings`, { method: 'POST', headers: AUTH, body: payload });
-  const res2 = await fetch(`${base}/v1/embeddings`, { method: 'POST', headers: AUTH, body: payload });
+  const res2 = await fetch(`${base}/v1/embeddings`, {
+    method: 'POST',
+    headers: AUTH,
+    body: payload,
+  });
   const json2 = await res2.json();
   assert.equal(json2.gateway.cached, true);
   server.close();

@@ -5,7 +5,11 @@ import { cache } from '../services/cache.js';
 import { metrics } from '../services/metrics.js';
 import { logger } from '../services/logger.js';
 import { computeCost } from '../services/cost.js';
-import { resolveProviderChain, executeAcrossTargets, openStreamAcrossTargets } from '../providers/index.js';
+import {
+  resolveProviderChain,
+  executeAcrossTargets,
+  openStreamAcrossTargets,
+} from '../providers/index.js';
 import { router } from '../routing/router.js';
 import { budgetManager } from '../services/budget.js';
 import { applyTokenSaver } from '../services/tokenSaver.js';
@@ -86,7 +90,14 @@ chatRouter.post('/chat/completions', async (req, res) => {
         ts: new Date().toISOString(),
       });
 
-      if (wantsStream) return streamFromText(res, requestId, hit, true, Boolean(body.stream_options?.include_usage));
+      if (wantsStream)
+        return streamFromText(
+          res,
+          requestId,
+          hit,
+          true,
+          Boolean(body.stream_options?.include_usage),
+        );
       return res.json(
         buildOpenAIResponse({
           id: requestId,
@@ -95,7 +106,7 @@ chatRouter.post('/chat/completions', async (req, res) => {
           finishReason: hit.finishReason,
           usage: hit.usage,
           cached: true,
-        })
+        }),
       );
     }
   }
@@ -112,9 +123,21 @@ chatRouter.post('/chat/completions', async (req, res) => {
 
   try {
     if (wantsStream) {
-      await handleStreaming(req, res, { requestId, body, cacheKey, startedAt, budgetKey: req.budgetKey });
+      await handleStreaming(req, res, {
+        requestId,
+        body,
+        cacheKey,
+        startedAt,
+        budgetKey: req.budgetKey,
+      });
     } else {
-      await handleNonStreaming(res, { requestId, body, cacheKey, startedAt, budgetKey: req.budgetKey });
+      await handleNonStreaming(res, {
+        requestId,
+        body,
+        cacheKey,
+        startedAt,
+        budgetKey: req.budgetKey,
+      });
     }
   } catch (err) {
     const latencyMs = Date.now() - startedAt;
@@ -146,7 +169,7 @@ async function handleNonStreaming(res, { requestId, body, cacheKey, startedAt, b
   const { result, provider, model, tier, usedFallback } = await executeAcrossTargets(
     targets,
     (p, m, signal) => p.chatCompletion({ body, model: m, signal }),
-    { requestId }
+    { requestId },
   );
 
   const costUsd = computeCost(result.model, result.usage.inputTokens, result.usage.outputTokens);
@@ -192,7 +215,7 @@ async function handleNonStreaming(res, { requestId, body, cacheKey, startedAt, b
       content: result.content,
       finishReason: result.finishReason,
       usage: result.usage,
-    })
+    }),
   );
 }
 
@@ -204,7 +227,7 @@ async function handleStreaming(req, res, { requestId, body, cacheKey, startedAt,
     await openStreamAcrossTargets(
       targets,
       (p, m, signal) => p.streamCompletion({ body, model: m, signal }),
-      { requestId }
+      { requestId },
     );
 
   // Open the SSE stream.
@@ -258,7 +281,7 @@ async function handleStreaming(req, res, { requestId, body, cacheKey, startedAt,
           completion_tokens: usage.outputTokens,
           total_tokens: usage.inputTokens + usage.outputTokens,
         },
-      })}\n\n`
+      })}\n\n`,
     );
   }
   res.write('data: [DONE]\n\n');
@@ -348,7 +371,7 @@ function streamFromText(res, requestId, hit, cached, includeUsage = false) {
           completion_tokens: hit.usage.outputTokens,
           total_tokens: hit.usage.inputTokens + hit.usage.outputTokens,
         },
-      })}\n\n`
+      })}\n\n`,
     );
   }
   res.write('data: [DONE]\n\n');

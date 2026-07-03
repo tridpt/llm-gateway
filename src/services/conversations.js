@@ -17,7 +17,8 @@ import { loadJson, saveJson } from './secureFile.js';
  */
 export class ConversationStore {
   constructor({ file, secret, maxPerOwner = 200 } = {}) {
-    this.file = file || process.env.CONVERSATIONS_FILE || path.join(config.rootDir, 'conversations.json');
+    this.file =
+      file || process.env.CONVERSATIONS_FILE || path.join(config.rootDir, 'conversations.json');
     this.secret = secret !== undefined ? secret : config.encryption.key;
     this.maxPerOwner = maxPerOwner;
     this.data = {}; // ownerKey -> { convId -> conv }
@@ -73,7 +74,10 @@ export class ConversationStore {
       model: conv.model || '',
       messages: Array.isArray(conv.messages)
         ? conv.messages
-            .filter((m) => m && typeof m.content === 'string' && (m.role === 'user' || m.role === 'assistant'))
+            .filter(
+              (m) =>
+                m && typeof m.content === 'string' && (m.role === 'user' || m.role === 'assistant'),
+            )
             .map((m) => ({ role: m.role, content: m.content }))
         : [],
       created: existing?.created || conv.created || now,

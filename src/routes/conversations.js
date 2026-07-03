@@ -31,6 +31,7 @@ conversationsRouter.put('/conversations/:id', (req, res) => {
 
 conversationsRouter.delete('/conversations/:id', (req, res) => {
   const removed = conversations.remove(req.clientKey, req.params.id);
-  if (!removed) return res.status(404).json({ error: { message: 'Not found.', type: 'not_found' } });
+  if (!removed)
+    return res.status(404).json({ error: { message: 'Not found.', type: 'not_found' } });
   res.json({ ok: true });
 });

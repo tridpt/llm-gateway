@@ -4,14 +4,21 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  encryptString, decryptString, isEncrypted, loadJson, saveJson,
+  encryptString,
+  decryptString,
+  isEncrypted,
+  loadJson,
+  saveJson,
 } from '../src/services/secureFile.js';
 import { TeamStore } from '../src/services/team.js';
 import { ConversationStore } from '../src/services/conversations.js';
 
 const SECRET = 'correct horse battery staple';
 function tmp(name) {
-  return path.join(os.tmpdir(), `llmgw-enc-${name}-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+  return path.join(
+    os.tmpdir(),
+    `llmgw-enc-${name}-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
+  );
 }
 
 test('encrypt/decrypt round-trips and produces an opaque envelope', () => {
@@ -30,7 +37,8 @@ test('decryption fails if the ciphertext is tampered with', () => {
   const blob = encryptString('integrity', SECRET);
   // Flip a character in the base64 body.
   const body = blob.slice(blob.indexOf(':') + 1);
-  const tampered = blob.slice(0, blob.indexOf(':') + 1) + (body[0] === 'A' ? 'B' : 'A') + body.slice(1);
+  const tampered =
+    blob.slice(0, blob.indexOf(':') + 1) + (body[0] === 'A' ? 'B' : 'A') + body.slice(1);
   assert.throws(() => decryptString(tampered, SECRET));
 });
 
@@ -79,7 +87,11 @@ test('TeamStore with a secret never writes member keys/names in plaintext', () =
 test('ConversationStore with a secret encrypts history on disk', () => {
   const file = tmp('conv');
   const store = new ConversationStore({ file, secret: SECRET });
-  store.upsert('owner', { id: 'c1', title: 'Lunch plans', messages: [{ role: 'user', content: 'pizza?' }] });
+  store.upsert('owner', {
+    id: 'c1',
+    title: 'Lunch plans',
+    messages: [{ role: 'user', content: 'pizza?' }],
+  });
 
   const raw = fs.readFileSync(file, 'utf8');
   assert.equal(isEncrypted(raw), true);
@@ -100,7 +112,7 @@ test('a plaintext store migrates to encrypted on next write', () => {
   // Reopen WITH a secret: it reads the plaintext, then encrypts on the next save.
   const upgraded = new TeamStore({ file, secret: SECRET });
   assert.equal(upgraded.get(m.key)?.name, 'Legacy'); // read legacy plaintext fine
-  upgraded.update(m.key, { name: 'Migrated' });       // triggers a save
+  upgraded.update(m.key, { name: 'Migrated' }); // triggers a save
   assert.equal(isEncrypted(fs.readFileSync(file, 'utf8')), true);
   fs.rmSync(file, { force: true });
 });

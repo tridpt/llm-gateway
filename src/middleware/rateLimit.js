@@ -21,9 +21,7 @@ export function rateLimit(req, res, next) {
 
   if (timestamps.length >= config.rateLimit.maxRequests) {
     metrics.recordRateLimited();
-    const retryAfter = Math.ceil(
-      (windowMs - (now - timestamps[0])) / 1000
-    );
+    const retryAfter = Math.ceil((windowMs - (now - timestamps[0])) / 1000);
     res.set('Retry-After', String(retryAfter));
     return res.status(429).json({
       error: {

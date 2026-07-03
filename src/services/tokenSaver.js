@@ -22,7 +22,13 @@ export function applyTokenSaver(messages = [], opts = {}) {
   // 1. Optionally collapse whitespace.
   let working = messages.map((m) => {
     if (trimWhitespace && typeof m.content === 'string') {
-      return { ...m, content: m.content.replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim() };
+      return {
+        ...m,
+        content: m.content
+          .replace(/[ \t]{2,}/g, ' ')
+          .replace(/\n{3,}/g, '\n\n')
+          .trim(),
+      };
     }
     return { ...m };
   });
@@ -47,8 +53,11 @@ export function applyTokenSaver(messages = [], opts = {}) {
   // 4. Cap by token budget (drop oldest convo messages, never the last one).
   if (maxInputTokens != null) {
     const systemTokens = systems.reduce(
-      (s, { m }) => s + estimateTokens(typeof m.content === 'string' ? m.content : JSON.stringify(m.content)) + 4,
-      0
+      (s, { m }) =>
+        s +
+        estimateTokens(typeof m.content === 'string' ? m.content : JSON.stringify(m.content)) +
+        4,
+      0,
     );
     while (keptConvo.length > 1) {
       const current = systemTokens + estimateMessagesTokens(keptConvo.map((x) => x.m));

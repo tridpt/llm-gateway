@@ -30,7 +30,9 @@ export function budgetGuard(req, res, next) {
     metrics.recordRateLimited();
     // Seconds until the next UTC midnight (when the budget resets).
     const now = new Date();
-    const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+    const tomorrow = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1),
+    );
     res.set('Retry-After', String(Math.ceil((tomorrow - now) / 1000)));
     return res.status(429).json({
       error: {
