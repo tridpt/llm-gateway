@@ -4,6 +4,9 @@ logs/
 *.log
 .DS_Store
 
+# Throwaway test-run output logs
+run_*.txt
+
 # Runtime team store (created/managed via the admin UI)
 team.json
 # Server-side conversation history (synced from the chat UI)
