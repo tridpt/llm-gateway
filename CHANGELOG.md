@@ -7,6 +7,11 @@ and the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Unit tests for the response cache (TTL, LRU eviction, key hashing), cost
+  accounting, and session-token signing/verification.
+
 ## [1.1.0] - 2026-07-24
 
 ### Added

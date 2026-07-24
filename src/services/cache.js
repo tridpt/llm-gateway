@@ -11,7 +11,7 @@ import { config } from '../config.js';
  * Note: in-memory only. For multi-instance deployments you would back this
  * with Redis, but the interface here would stay the same.
  */
-class ResponseCache {
+export class ResponseCache {
   constructor({ ttlSeconds, maxEntries }) {
     this.ttlMs = ttlSeconds * 1000;
     this.maxEntries = maxEntries;
