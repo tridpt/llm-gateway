@@ -10,8 +10,11 @@ test('round-robins across keys', () => {
   assert.equal(pool.next().key, 'k1'); // wraps around
 });
 
-test('skips a rate-limited key until cooldown elapses', async () => {
-  const pool = new KeyPool('p', ['k1', 'k2'], { cooldownMs: 30 });
+test('skips a rate-limited key until cooldown elapses', () => {
+  // Drive time with an injected clock so the test is deterministic and never
+  // races against a real wall-clock cooldown under load.
+  let clock = 1000;
+  const pool = new KeyPool('p', ['k1', 'k2'], { cooldownMs: 30, now: () => clock });
 
   // k1 hits a limit; subsequent picks should avoid it.
   pool.markRateLimited('k1');
@@ -19,7 +22,7 @@ test('skips a rate-limited key until cooldown elapses', async () => {
   assert.equal(pool.next().key, 'k2'); // k1 still resting
 
   // After cooldown, k1 becomes usable again.
-  await new Promise((r) => setTimeout(r, 40));
+  clock += 40;
   const keys = new Set([pool.next().key, pool.next().key]);
   assert.ok(keys.has('k1'));
 });

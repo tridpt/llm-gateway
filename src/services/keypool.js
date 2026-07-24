@@ -14,12 +14,14 @@ import { logger } from './logger.js';
  * key on the immediate retry.
  */
 export class KeyPool {
-  constructor(name, keys = [], { cooldownMs } = {}) {
+  constructor(name, keys = [], { cooldownMs, now } = {}) {
     this.name = name;
     this.keys = keys;
     this.cooldownMs = cooldownMs ?? 60000;
     this.rrIndex = 0;
     this.cooldownUntil = new Map(); // key -> timestamp (ms)
+    // Injectable clock so cooldown behaviour can be tested deterministically.
+    this.now = typeof now === 'function' ? now : Date.now;
   }
 
   size() {
@@ -27,7 +29,7 @@ export class KeyPool {
   }
 
   availableCount() {
-    const now = Date.now();
+    const now = this.now();
     return this.keys.filter((k) => (this.cooldownUntil.get(k) || 0) <= now).length;
   }
 
@@ -37,7 +39,7 @@ export class KeyPool {
    */
   next() {
     if (this.keys.length === 0) return null;
-    const now = Date.now();
+    const now = this.now();
 
     for (let i = 0; i < this.keys.length; i++) {
       const idx = (this.rrIndex + i) % this.keys.length;
@@ -51,7 +53,7 @@ export class KeyPool {
   }
 
   markRateLimited(key) {
-    this.cooldownUntil.set(key, Date.now() + this.cooldownMs);
+    this.cooldownUntil.set(key, this.now() + this.cooldownMs);
     logger.warn('API key rate-limited, resting it', {
       provider: this.name,
       keyIndex: this.keys.indexOf(key),
@@ -64,7 +66,7 @@ export class KeyPool {
   }
 
   snapshot() {
-    const now = Date.now();
+    const now = this.now();
     return {
       total: this.keys.length,
       available: this.availableCount(),
