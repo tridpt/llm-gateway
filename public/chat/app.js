@@ -185,7 +185,7 @@ $('loginForm').addEventListener('submit', async (e) => {
       );
       await startApp();
       return;
-    } catch (e2) {
+    } catch {
       err.textContent = 'Could not reach gateway' + (base ? ' at ' + base : '') + '.';
       return;
     }
@@ -210,7 +210,7 @@ $('loginForm').addEventListener('submit', async (e) => {
       err.textContent = 'Gateway error: HTTP ' + res.status;
       return;
     }
-  } catch (e2) {
+  } catch {
     err.textContent = 'Could not reach gateway' + (base ? ' at ' + base : '') + '.';
     return;
   }
@@ -396,27 +396,6 @@ function deleteConvo(id, ev) {
   renderConvList();
 }
 
-function renderConvListLegacy() {
-  const wrap = $('convList');
-  wrap.innerHTML = '';
-  for (const c of state.convos) {
-    const item = document.createElement('div');
-    item.className = 'conv-item' + (c.id === state.currentId ? ' active' : '');
-    item.onclick = () => selectConvo(c.id);
-    const title = document.createElement('span');
-    title.className = 'title';
-    title.textContent = c.title || 'New chat';
-    const del = document.createElement('button');
-    del.className = 'del';
-    del.textContent = '🗑';
-    del.title = 'Delete chat';
-    del.onclick = (e) => deleteConvo(c.id, e);
-    item.appendChild(title);
-    item.appendChild(del);
-    wrap.appendChild(item);
-  }
-}
-
 /* ── System prompt panel ──────────────────────────────────── */
 function renameConvo(id, ev) {
   ev.stopPropagation();
@@ -535,38 +514,6 @@ function renderMessages() {
   if (!c || c.messages.length === 0) {
     box.innerHTML =
       '<div class="empty-state"><div class="big">💬</div>' +
-      '<h2>Ask anything</h2>' +
-      '<div>Shared gateway, your own budget. Pick a model above and start typing.</div></div>';
-    return;
-  }
-  c.messages.forEach((m, index) => box.appendChild(messageEl(m.role, m.content, index)));
-  box.scrollTop = box.scrollHeight;
-}
-
-function messageElLegacy(role, content) {
-  const wrap = document.createElement('div');
-  wrap.className = 'msg-wrap';
-  const msg = document.createElement('div');
-  msg.className = 'msg ' + role;
-  const avatar = document.createElement('div');
-  avatar.className = 'role-avatar';
-  avatar.textContent = role === 'user' ? (state.name[0] || 'U').toUpperCase() : '✦';
-  const body = document.createElement('div');
-  body.className = 'content';
-  body.innerHTML = renderMarkdown(content);
-  msg.appendChild(avatar);
-  msg.appendChild(body);
-  wrap.appendChild(msg);
-  return wrap;
-}
-
-function renderMessagesLegacy() {
-  const box = $('messages');
-  const c = current();
-  box.innerHTML = '';
-  if (!c || c.messages.length === 0) {
-    box.innerHTML =
-      '<div class="empty-state"><div class="big">Chat</div>' +
       '<h2>Ask anything</h2>' +
       '<div>Shared gateway, your own budget. Pick a model above and start typing.</div></div>';
     return;
@@ -752,103 +699,6 @@ function hint(msg, isError = false) {
   const h = $('hint');
   h.textContent = msg || '';
   h.classList.toggle('error', isError);
-}
-
-async function sendLegacy() {
-  const text = input.value.trim();
-  if (!text || state.controller) return;
-  const c = current();
-  if (!c) return;
-
-  hint('');
-  c.messages.push({ role: 'user', content: text });
-  if (c.messages.length === 1) {
-    c.title = text.slice(0, 40);
-    $('convTitle').textContent = c.title;
-    renderConvList();
-  }
-  c.updated = Date.now();
-  saveConvos();
-
-  input.value = '';
-  input.style.height = 'auto';
-
-  const box = $('messages');
-  if (box.querySelector('.empty-state')) box.innerHTML = '';
-  box.appendChild(messageEl('user', text));
-
-  // Placeholder assistant bubble we stream into.
-  const asstWrap = messageEl('assistant', '');
-  const asstBody = asstWrap.querySelector('.content');
-  asstBody.classList.add('cursor-blink');
-  box.appendChild(asstWrap);
-  box.scrollTop = box.scrollHeight;
-
-  // Build payload: optional system prompt + full history.
-  const payloadMsgs = [];
-  if (c.system) payloadMsgs.push({ role: 'system', content: c.system });
-  for (const m of c.messages) payloadMsgs.push({ role: m.role, content: m.content });
-
-  state.controller = new AbortController();
-  setSending(true);
-  let acc = '';
-
-  try {
-    const res = await fetch(api('/v1/chat/completions'), {
-      method: 'POST',
-      headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ model: state.model, stream: true, messages: payloadMsgs }),
-      signal: state.controller.signal,
-    });
-
-    updateBudgetFromHeaders(res.headers);
-
-    if (!res.ok) {
-      let detail = 'HTTP ' + res.status;
-      try {
-        const j = await res.json();
-        detail = j.error?.message || detail;
-      } catch {}
-      asstBody.classList.remove('cursor-blink');
-      asstBody.innerHTML = renderMarkdown('⚠️ ' + detail);
-      hint(res.status === 429 ? 'Daily budget reached — resets at UTC midnight.' : detail, true);
-      c.messages.push({ role: 'assistant', content: '⚠️ ' + detail });
-      persist(c);
-      return;
-    }
-
-    acc = await readSSE(res, (delta) => {
-      acc += delta;
-      asstBody.innerHTML = renderMarkdown(acc);
-      asstBody.classList.add('cursor-blink');
-      box.scrollTop = box.scrollHeight;
-    });
-
-    asstBody.classList.remove('cursor-blink');
-    asstBody.innerHTML = renderMarkdown(acc || '(empty response)');
-    c.messages.push({ role: 'assistant', content: acc });
-    c.updated = Date.now();
-    persist(c);
-    refreshBudget();
-  } catch (e) {
-    asstBody.classList.remove('cursor-blink');
-    if (e.name === 'AbortError') {
-      const partial = acc + '\n\n_(stopped)_';
-      asstBody.innerHTML = renderMarkdown(partial);
-      if (acc) {
-        c.messages.push({ role: 'assistant', content: acc });
-        persist(c);
-      }
-      hint('Stopped.');
-    } else {
-      asstBody.innerHTML = renderMarkdown('⚠️ ' + e.message);
-      hint(e.message, true);
-    }
-  } finally {
-    state.controller = null;
-    setSending(false);
-    input.focus();
-  }
 }
 
 async function send() {

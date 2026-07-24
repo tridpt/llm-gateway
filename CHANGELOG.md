@@ -7,12 +7,23 @@ and the project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-07-24
+
 ### Added
 
 - Community health files: `CONTRIBUTING.md`, `SECURITY.md`, this changelog,
   issue templates, and a pull request template.
 - ESLint (flat config) and Prettier with `lint` / `format` npm scripts.
 - Dependabot config and a `lint` job in CI.
+- Dashboard and chat UI screenshots with a README section.
+
+### Fixed
+
+- Flaky conversation-ordering test now uses real timestamps.
+
+### Removed
+
+- Unused "Legacy" functions from the team chat client (`public/chat/app.js`).
 
 ## [1.0.0]
 
@@ -42,5 +53,6 @@ and the project follows [Semantic Versioning](https://semver.org/).
 - API, configuration, and architecture documentation under `docs/`, plus a
   Vietnamese deep-dive in `TAI_LIEU.md`.
 
-[Unreleased]: https://github.com/tridpt/llm-gateway/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/tridpt/llm-gateway/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/tridpt/llm-gateway/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/tridpt/llm-gateway/releases/tag/v1.0.0
