@@ -10,7 +10,7 @@ and the project follows [Semantic Versioning](https://semver.org/).
 ### Added
 
 - Unit tests for the response cache (TTL, LRU eviction, key hashing), cost
-  accounting, and session-token signing/verification.
+  accounting, session-token signing/verification, and the structured logger.
 
 ## [1.1.0] - 2026-07-24
 

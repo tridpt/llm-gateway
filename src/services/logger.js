@@ -6,7 +6,7 @@ import { config } from '../config.js';
  * Structured JSON logger. Writes one JSON object per line (JSONL) which is
  * trivial to grep, tail, or ship to a log aggregator.
  */
-class Logger {
+export class Logger {
   constructor() {
     this.stream = null;
     if (config.logging.toFile) {
@@ -19,13 +19,17 @@ class Logger {
     }
   }
 
-  _write(level, message, meta = {}) {
-    const entry = {
+  _entry(level, message, meta = {}) {
+    return {
       ts: new Date().toISOString(),
       level,
       message,
       ...meta,
     };
+  }
+
+  _write(level, message, meta = {}) {
+    const entry = this._entry(level, message, meta);
     const line = JSON.stringify(entry);
 
     const consoleFn = level === 'error' ? console.error : console.log;
