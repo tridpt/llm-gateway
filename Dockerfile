@@ -1,7 +1,7 @@
 # ── LLM Gateway image ──────────────────────────────────
 # Small, production-oriented Node image. No build step is needed (plain ESM),
 # so we just install production dependencies and copy the source.
-FROM node:22-alpine
+FROM node:25-alpine
 
 # Run as an unprivileged user (the base image ships a "node" user).
 ENV NODE_ENV=production
